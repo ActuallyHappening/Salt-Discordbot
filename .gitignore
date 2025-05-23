@@ -1,0 +1,11 @@
+/*
+
+!src
+!build.rs
+
+!.gitignore
+!Cargo.lock
+!Cargo.toml
+!env.sample.toml
+!README.md
+!rustfmt.toml

@@ -1,0 +1,32 @@
+[package]
+name = "salt-discordbot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+color-eyre = "0.6.3"
+serde = { version = "1.0.218", features = ["derive"] }
+time = { version = "0.3.37", features = ["local-offset", "macros"] }
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-error = "0.2.1"
+tracing-subscriber = { version = "0.3.19", features = [
+  "fmt",
+  "env-filter",
+  "time",
+] }
+twilight = "0.16.0"
+twilight-cache-inmemory = "0.16.0"
+twilight-gateway = { version = "0.16.0", features = ["rustls-aws-lc-rs"] }
+twilight-http = "0.16.0"
+twilight-interactions = "0.16.1"
+twilight-mention = "0.16.0"
+twilight-model = "0.16.0"
+twilight-util = "0.16.0"
+rustls = { version = "0.23.23", features = ["aws-lc-rs"] }
+serde_json = "1.0.140"
+
+[build-dependencies]
+toml = "0.8.22"
+color-eyre = "0.6.3"
+toml_edit = "0.22.26"
