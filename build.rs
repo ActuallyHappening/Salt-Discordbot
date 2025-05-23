@@ -28,7 +28,6 @@ fn main() -> color_eyre::Result<()> {
 		}
 	}
 
-	sample.fmt();
 	std::fs::write("env.sample.toml", sample.to_string())
 		.wrap_err("Couldn't write back out to env.sample.toml")?;
 
