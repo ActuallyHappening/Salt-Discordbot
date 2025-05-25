@@ -243,8 +243,18 @@ mod cli {
 			self
 		}
 
+		/// Hides PRIVATE_KEY
+		fn debug(&self) -> String {
+			let mut initial = format!("{:?}", self.0);
+			let re = regex::Regex::new(r#"PRIVATE_KEY="([a-zA-z0-9]+)""#).unwrap();
+			if let Some(find) = re.find(&initial) {
+				initial = initial.replace(find.as_str(), r#"PRIVATE_KEY="redacted""#);
+			}
+			initial
+		}
+
 		pub fn run_and_wait(mut self) -> Result<()> {
-			info!("Running command {:?}", self.0);
+			info!("Running command {}", self.debug());
 			let status = self.0.status().map_err(Error::FailedToExecute)?;
 			if !status.success() {
 				return Err(Error::SubprocessExited(status));
