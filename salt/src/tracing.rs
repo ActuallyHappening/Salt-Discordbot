@@ -3,7 +3,7 @@ use tracing_subscriber::fmt::time::OffsetTime;
 
 pub fn install_tracing(
 	default_env_filter: impl std::borrow::Borrow<str>,
-) {
+) -> color_eyre::Result<()> {
 	use tracing_error::ErrorLayer;
 	use tracing_subscriber::prelude::*;
 	use tracing_subscriber::{EnvFilter, fmt};
@@ -28,7 +28,7 @@ pub fn install_tracing(
 		.with(ErrorLayer::default())
 		.init();
 
-	// color_eyre::install()?;
+	color_eyre::install()?;
 
-	// Ok(())
+	Ok(())
 }

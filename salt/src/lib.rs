@@ -20,6 +20,39 @@ use crate::prelude::*;
 
 pub struct Salt {
 	project_folder: Utf8PathBuf,
+	config: SaltConfig,
+}
+
+#[derive(Clone, serde::Deserialize)]
+pub struct SaltConfig {
+	#[serde(rename = "PRIVATE_KEY")]
+	pub private_key: String,
+
+	#[serde(rename = "ORCHESTRATION_NETWORK_RPC_NODE_URL")]
+	pub orchestration_network_rpc_node: Url,
+
+	#[serde(rename = "BROADCASTING_NETWORK_RPC_NODE_URL")]
+	pub broadcasting_network_rpc_node: Url,
+
+	#[serde(rename = "BROADCASTING_NETWORK_ID")]
+	pub broadcasting_network_id: String,
+}
+
+impl SaltConfig {
+	fn iter(self) -> impl IntoIterator<Item = (&'static str, String)> {
+		[
+			("PRIVATE_KEY", self.private_key),
+			(
+				"ORCHESTRATION_NETWORK_RPC_NODE_URL",
+				self.orchestration_network_rpc_node.to_string(),
+			),
+			(
+				"BROADCASTING_NETWORK_RPC_NODE_URL",
+				self.broadcasting_network_rpc_node.to_string(),
+			),
+			("BROADCASTING_NETWORK_ID", self.broadcasting_network_id),
+		]
+	}
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -62,10 +95,13 @@ impl Salt {
 		Ok(path.join("salt-asset-manager"))
 	}
 
-	pub fn new() -> Result<Salt> {
+	pub fn new(config: SaltConfig) -> Result<Salt> {
 		let salt = Salt {
 			project_folder: Salt::default_project_path()?,
+			config,
 		};
+		
+		salt.init()?;
 
 		Ok(salt)
 	}
@@ -88,14 +124,42 @@ impl Salt {
 		Ok(())
 	}
 
-	fn cmd(&self, args: impl IntoIterator<Item = String>) -> Result<Command> {
+	/// git pull && deno install && nu fix.nu
+	fn init(&self) -> Result<()> {
 		let git = self.git()?;
 		git.ensure_latest_branch(
 			Url::parse("https://github.com/ActuallyHappening/salt-asset-manager").unwrap(),
 			"master",
 		)?;
-		let deno = which("deno", "required javascript runtime")?;
-		let cmd = cli::Command::pure(deno)?
+		
+		let deno = Salt::deno()?;
+		cli::Command::pure(deno)?
+			.with_args(["install".into()])
+			.run_and_wait()?;
+
+		if self.project_folder.join("fix.nu").exists() {
+			debug!("Detected fix.nu, running this after deno install");
+			// run fix.nu
+			let nu = which(
+				"nu",
+				"required shell to run fix.nu, see https://www.nushell.sh/book/installation.html#package-managers",
+			)?;
+			cli::Command::pure(nu)?
+				.with_args(["fix.nu".into()])
+				.run_and_wait()?;
+		}
+		
+		info!("Successfully initialized/updated git checkout at {} ready for runtime consumption", self.project_folder);
+
+		Ok(())
+	}
+
+	fn deno() -> Result<Utf8PathBuf> {
+		which("deno", "required javascript runtime")
+	}
+
+	fn cmd(&self, args: impl IntoIterator<Item = String>) -> Result<Command> {
+		let cmd = cli::Command::pure(Salt::deno()?)?
 			.with_args(
 				[
 					"run",
@@ -108,7 +172,8 @@ impl Salt {
 				.into_iter()
 				.map(String::from),
 			)
-			.with_args(args);
+			.with_args(args)
+			.with_envs(self.config.clone().iter());
 		Ok(cmd)
 	}
 
@@ -144,6 +209,11 @@ mod cli {
 
 		pub fn with_args(mut self, args: impl IntoIterator<Item = String>) -> Self {
 			self.0.args(args);
+			self
+		}
+
+		pub fn with_envs(mut self, envs: impl IntoIterator<Item = (&'static str, String)>) -> Self {
+			self.0.envs(envs);
 			self
 		}
 
