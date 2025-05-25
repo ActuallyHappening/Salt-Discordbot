@@ -24,7 +24,7 @@ fn main() -> color_eyre::Result<()> {
 	let vault_address = rl.readline("Vault address: ")?;
 	let recipient_address = rl.readline("Recipient address: ")?;
 
-	salt.transaction(amount, vault_address, recipient_address).wrap_err("Couln't do salt transaction")?;
+	salt.transaction(amount, vault_address, recipient_address).wrap_err("Couldn't do salt transaction")?;
 
 	Ok(())
 }

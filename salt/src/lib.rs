@@ -100,7 +100,7 @@ impl Salt {
 			project_folder: Salt::default_project_path()?,
 			config,
 		};
-		
+
 		salt.init()?;
 
 		Ok(salt)
@@ -131,9 +131,10 @@ impl Salt {
 			Url::parse("https://github.com/ActuallyHappening/salt-asset-manager").unwrap(),
 			"master",
 		)?;
-		
+
 		let deno = Salt::deno()?;
 		cli::Command::pure(deno)?
+			.with_cwd(self.project_folder.clone())
 			.with_args(["install".into()])
 			.run_and_wait()?;
 
@@ -145,11 +146,15 @@ impl Salt {
 				"required shell to run fix.nu, see https://www.nushell.sh/book/installation.html#package-managers",
 			)?;
 			cli::Command::pure(nu)?
+				.with_cwd(self.project_folder.clone())
 				.with_args(["fix.nu".into()])
 				.run_and_wait()?;
 		}
-		
-		info!("Successfully initialized/updated git checkout at {} ready for runtime consumption", self.project_folder);
+
+		info!(
+			"Successfully initialized/updated git checkout at {} ready for runtime consumption",
+			self.project_folder
+		);
 
 		Ok(())
 	}
