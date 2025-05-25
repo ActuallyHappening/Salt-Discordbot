@@ -6,6 +6,7 @@ repository = "https://github.com/ActuallyHappening/Salt-DiscordBot"
 version = "0.0.1"
 edition = "2024"
 default-run = "salt-cli"
+license = "ISC"
 
 [features]
 default = ["cli"]
