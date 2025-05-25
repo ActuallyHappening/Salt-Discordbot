@@ -7,6 +7,9 @@ edition = "2024"
 camino = "1.1.9"
 dirs = "6.0.0"
 thiserror = "2.0.12"
+time = { version = "0.3.41", features = ["macros"] }
 tracing = "0.1.41"
+tracing-error = "0.2.1"
+tracing-subscriber = { version = "0.3.19", features = ["time", "local-time", "env-filter"] }
 url = "2.5.4"
 which = { version = "7.0.3", features = ["tracing"] }

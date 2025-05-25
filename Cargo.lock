@@ -1329,7 +1329,10 @@ dependencies = [
  "camino",
  "dirs",
  "thiserror 2.0.12",
+ "time",
  "tracing",
+ "tracing-error",
+ "tracing-subscriber",
  "url",
  "which 7.0.3",
 ]
