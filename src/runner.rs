@@ -1,7 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{common::GlobalState, prelude::*};
-use db::select::LiveSelectTable;
 use tokio::task::JoinSet;
 use twilight_gateway::{Event, EventTypeFlags, Shard, StreamExt as _};
 use twilight_model::{

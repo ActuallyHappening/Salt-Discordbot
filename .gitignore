@@ -2,6 +2,7 @@
 
 !src
 !build.rs
+!salt
 
 !.gitignore
 !Cargo.lock

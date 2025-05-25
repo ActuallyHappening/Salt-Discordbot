@@ -40,7 +40,6 @@ mod presence {
 }
 
 mod common {
-	use db::auth;
 	use twilight_http::Client;
 
 	use crate::prelude::*;
