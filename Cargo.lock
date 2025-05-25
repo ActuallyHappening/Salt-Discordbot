@@ -1415,7 +1415,7 @@ dependencies = [
 
 [[package]]
 name = "salt-sdk"
-version = "0.0.0"
+version = "0.0.0-alpha1"
 dependencies = [
  "camino",
  "color-eyre",
