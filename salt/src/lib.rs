@@ -164,7 +164,7 @@ impl Salt {
 	}
 
 	fn cmd(&self, args: impl IntoIterator<Item = String>) -> Result<Command> {
-		let cmd = cli::Command::pure(Salt::deno()?)?
+		let cmd = cli::Command::pure(Salt::deno()?)?.with_cwd(self.project_folder.clone())
 			.with_args(
 				[
 					"run",
