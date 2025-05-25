@@ -38,6 +38,22 @@ pub struct SaltConfig {
 	pub broadcasting_network_id: String,
 }
 
+impl std::fmt::Debug for SaltConfig {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let map = self.clone().iter();
+		let mut fmt = f.debug_struct("SaltConfig");
+		let blacklisted_fields = ["PRIVATE_KEY"];
+		for (key, value) in map {
+			if blacklisted_fields.contains(&key) {
+				fmt.field(key, &"redacted".to_owned());
+			} else {
+				fmt.field(key, &value);
+			}
+		}
+		fmt.finish()
+	}
+}
+
 impl SaltConfig {
 	fn iter(self) -> impl IntoIterator<Item = (&'static str, String)> {
 		[
@@ -124,6 +140,10 @@ impl Salt {
 		Ok(())
 	}
 
+	pub fn broadcasting_network_id(&self) -> String {
+		self.config.broadcasting_network_id.clone()
+	}
+
 	/// git pull && deno install && nu fix.nu
 	fn init(&self) -> Result<()> {
 		let git = self.git()?;
@@ -164,7 +184,8 @@ impl Salt {
 	}
 
 	fn cmd(&self, args: impl IntoIterator<Item = String>) -> Result<Command> {
-		let cmd = cli::Command::pure(Salt::deno()?)?.with_cwd(self.project_folder.clone())
+		let cmd = cli::Command::pure(Salt::deno()?)?
+			.with_cwd(self.project_folder.clone())
 			.with_args(
 				[
 					"run",
