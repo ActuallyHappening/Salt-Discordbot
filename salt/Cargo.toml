@@ -1,6 +1,9 @@
 [package]
 name = "salt-sdk"
-version = "0.1.0"
+description = "Salt asset manager Rust SDK"
+homepage = "https://salt.space/"
+repository = "https://github.com/ActuallyHappening/Salt-DiscordBot"
+version = "0.0.1"
 edition = "2024"
 default-run = "salt-cli"
 
