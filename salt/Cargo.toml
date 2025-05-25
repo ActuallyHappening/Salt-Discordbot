@@ -1,10 +1,13 @@
 [package]
-name = "salt"
+name = "salt-sdk"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bossy = "0.2.1"
 camino = "1.1.9"
 dirs = "6.0.0"
 thiserror = "2.0.12"
 tracing = "0.1.41"
+url = "2.5.4"
+which = { version = "7.0.3", features = ["tracing"] }
