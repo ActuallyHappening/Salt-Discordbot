@@ -1,10 +1,12 @@
 pub(crate) mod prelude {
+	#![allow(unused_imports)]
 	pub(crate) use std::sync::Arc;
 	#[allow(unused_imports)]
 	pub(crate) use tracing::{debug, error, info, trace, warn};
 
+	pub(crate) use camino::{Utf8Path, Utf8PathBuf};
+
 	pub(crate) use crate::errors::*;
-	pub(crate) use db::prelude::*;
 }
 
 pub(crate) mod errors {
@@ -40,6 +42,7 @@ mod presence {
 }
 
 mod common {
+	use salt_sdk::{Salt, SaltConfig};
 	use twilight_http::Client;
 
 	use crate::prelude::*;
@@ -47,24 +50,20 @@ mod common {
 	/// Cheap to clone
 	#[derive(Clone)]
 	pub struct GlobalState {
-		salt: Salt,
 		client: Arc<Client>,
 	}
 
 	pub struct GlobalStateRef<'a> {
-		pub db: Db<auth::Root>,
 		pub client: &'a Client,
 	}
 
 	impl GlobalState {
 		pub async fn new(client: Arc<Client>) -> Result<Self> {
-			let salt = Salt::new();
-			Ok(GlobalState { client, salt })
+			Ok(GlobalState { client, })
 		}
 
 		pub fn get(&self) -> GlobalStateRef<'_> {
 			GlobalStateRef {
-				db: self.db.clone(),
 				client: &self.client,
 			}
 		}
@@ -77,29 +76,47 @@ mod common {
 	}
 }
 
-mod salt {
-	//! link to salt jsr library integration
+mod env {
+	use url::Url;
 
-	pub struct Salt {
-		path: Utf8PathBuf,
+	use crate::prelude::*;
+
+	#[derive(serde::Deserialize)]
+	#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+	pub struct Env {
+		pub bot_application_id: String,
+		pub bot_token: String,
+
+		pub somnia_shannon_rpc_endpoint: Url,
+		pub sepolia_abitrum_rpc_endpoint: Url,
+		pub sepolia_etherium_rpc_endpoint: Url,
+		pub faucet_testnet_salt_account_address: String,
+
+		pub private_key: String,
+		pub orchestration_network_rpc_node_url: String,
 	}
 
-	impl Salt {
-		pub fn new() -> color_eyre::Result<Salt> {
-			todo!()
+	impl Env {
+		pub(crate) fn from_local_env() -> Result<Env> {
+			let path = Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("env.toml");
+			let file = std::fs::read_to_string(path).wrap_err("Couldn't read env.toml")?;
+			let env: Env = toml::from_str(&file)
+				.wrap_err("env.toml not valid toml or missing required key")?;
+			Ok(env)
 		}
 	}
 }
 
 pub use main::main;
 mod main {
-	use crate::{common::GlobalState, prelude::*};
+	use crate::{common::GlobalState, env, prelude::*};
 
 	use twilight_gateway::{ConfigBuilder, Intents};
 	use twilight_http::Client;
 
 	pub async fn main() -> Result<()> {
-		let token = ::env::discord::SECRET_API_KEY.to_string();
+		let env = env::Env::from_local_env()?;
+		let token = env.bot_token;
 
 		// Initialize Twilight HTTP client and gateway configuration.
 		let client = Arc::new(Client::new(token.clone()));
@@ -132,8 +149,6 @@ mod main {
 			senders.push(shard.sender());
 			tasks.spawn(crate::runner::runner(state.clone(), shard));
 		}
-
-		tasks.spawn(crate::runner::logging_runner(state));
 
 		tokio::signal::ctrl_c().await?;
 		crate::runner::SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
