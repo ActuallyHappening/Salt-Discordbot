@@ -1,4 +1,4 @@
-use crate::{prelude::*, ratelimits::RateLimit};
+use crate::{prelude::*, ratelimits::Key};
 use salt_sdk::{Salt, SaltConfig};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
@@ -126,12 +126,13 @@ impl FaucetCommand {
 		};
 
 		// check ratelimiting
-		let ratelimit = state
-			.ratelimits
-			.lock()
-			.or_poisoned()
-			.check(&address, &discord_id);
-		if let RateLimit::Ratelimited { msg } = ratelimit {
+		let ratelimit_key = Key {
+			address: address.clone().into_boxed_str(),
+			discord_id: discord_id.into_boxed_str(),
+			chain_id,
+		};
+		let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
+		if let Err(msg) = ratelimit {
 			let data = InteractionResponseDataBuilder::new()
 				.content(format!(
 					"Couldn't faucet you any tokens because you are ratelimited!\n{}",
@@ -204,7 +205,7 @@ impl FaucetCommand {
 				.ratelimits
 				.lock()
 				.or_poisoned()
-				.register(&address, &discord_id)
+				.register(&ratelimit_key)
 				.wrap_err("Couldn't register successful bot transaction")?;
 			state
 				.client

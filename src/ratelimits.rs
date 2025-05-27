@@ -4,29 +4,56 @@ use time::{Duration, OffsetDateTime};
 
 use crate::prelude::*;
 
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
-pub struct RateLimits {
+#[derive(serde::Deserialize, serde::Serialize, Clone, Default)]
+struct ChainLimits {
 	address: HashMap<Box<str>, Vec<OffsetDateTime>>,
 	discord_id: HashMap<Box<str>, Vec<OffsetDateTime>>,
 }
 
-pub enum RateLimit {
-	Ratelimited { msg: String },
-	Ok,
+pub struct Key {
+	pub address: Box<str>,
+	pub discord_id: Box<str>,
+	pub chain_id: u64,
 }
 
-impl RateLimit {
-	pub fn is_ok(&self) -> bool {
-		matches!(self, RateLimit::Ok)
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct RateLimits(HashMap<u64, ChainLimits>);
+
+impl RateLimits {
+	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
+		if !self.0.contains_key(&key.chain_id) {
+			self.0.insert(key.chain_id, ChainLimits::default());
+		}
+		self.0
+			.get_mut(&key.chain_id)
+			.unwrap()
+			.check(&key.address, &key.discord_id)
+	}
+
+	pub fn register(&mut self, key: &Key) -> Result<()> {
+		if !self.0.contains_key(&key.chain_id) {
+			self.0.insert(key.chain_id, ChainLimits::default());
+		}
+		self.0
+			.get_mut(&key.chain_id)
+			.unwrap()
+			.register(&key.address, &key.discord_id);
+		
+		self.save()?;
+		Ok(())
 	}
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct RateLimitErr(String);
 
 /// Simple toml file storage
 impl RateLimits {
 	pub fn read() -> Result<Self> {
 		let path = Utf8PathBuf::from("ratelimits.toml");
 		let file = std::fs::read_to_string(path)?;
-		let data: RateLimits = toml::from_str(&file)?;
+		let data: Self = toml::from_str(&file)?;
 		Ok(data)
 	}
 
@@ -38,8 +65,8 @@ impl RateLimits {
 	}
 }
 
-impl RateLimits {
-	pub fn check(&mut self, address: &str, discord_id: &str) -> RateLimit {
+impl ChainLimits {
+	pub fn check(&mut self, address: &str, discord_id: &str) -> Result<(), RateLimitErr> {
 		let address: Box<str> = address.to_owned().into_boxed_str();
 		let discord_id = discord_id.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
@@ -52,27 +79,24 @@ impl RateLimits {
 		if !self.discord_id.contains_key(&discord_id) {
 			self.discord_id.insert(discord_id.clone(), Vec::new());
 		}
-		let discord_valid =
-			Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
+		let discord_valid = Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
 
 		match (address_valid, discord_valid) {
-			(true, false) => RateLimit::Ratelimited {
-				msg: String::from("Too many requests from this discord account"),
-			},
-			(false, true) => RateLimit::Ratelimited {
-				msg: String::from("Too many requests for this wallet address"),
-			},
-			(false, false) => RateLimit::Ratelimited {
-				msg: String::from(
-					"Too many requests from this discord account and wallet address (impressive)",
-				),
-			},
-			(true, true) => RateLimit::Ok,
+			(true, false) => Err(RateLimitErr(String::from(
+				"Too many requests from this discord account",
+			))),
+			(false, true) => Err(RateLimitErr(String::from(
+				"Too many requests for this wallet address",
+			))),
+			(false, false) => Err(RateLimitErr(String::from(
+				"Too many requests from this discord account and wallet address (impressive)",
+			))),
+			(true, true) => Ok(()),
 		}
 	}
 
 	/// Automatically saves
-	pub fn register(&mut self, address: &str, discord_id: &str) -> Result<()> {
+	pub fn register(&mut self, address: &str, discord_id: &str) {
 		let address: Box<str> = address.to_owned().into_boxed_str();
 		let discord_id = discord_id.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
@@ -86,9 +110,6 @@ impl RateLimits {
 			self.discord_id.insert(discord_id.clone(), Vec::new());
 		}
 		self.discord_id.get_mut(&discord_id).unwrap().push(now);
-
-		self.save()?;
-		Ok(())
 	}
 
 	fn address_valid(now: &OffsetDateTime, previous: &Vec<OffsetDateTime>) -> bool {
