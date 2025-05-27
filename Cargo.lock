@@ -1052,6 +1052,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
+name = "or_poisoned"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c04f5d74368e4d0dfe06c45c8627c81bd7c317d52762d118fb9b3076f6420fd"
+
+[[package]]
 name = "ordered-float"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1428,6 +1434,7 @@ version = "0.1.0"
 dependencies = [
  "camino",
  "color-eyre",
+ "or_poisoned",
  "rustls",
  "salt-sdk",
  "serde",
@@ -2124,6 +2131,10 @@ name = "twilight-util"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5777d71286611c1639021f5f6e6b40300eb8da278449ac1cf6da01c94053425"
+dependencies = [
+ "twilight-model",
+ "twilight-validate",
+]
 
 [[package]]
 name = "twilight-validate"

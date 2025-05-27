@@ -42,30 +42,42 @@ mod presence {
 }
 
 mod common {
+	use std::{
+		ops::DerefMut as _,
+		sync::{Mutex, MutexGuard},
+	};
+
+	use or_poisoned::OrPoisoned as _;
 	use twilight_http::Client;
 
-	use crate::{env::Env, prelude::*, ratelimits::{self, Ratelimits}};
+	use crate::{env::Env, prelude::*, ratelimits::Ratelimits};
 
 	/// Cheap to clone
 	#[derive(Clone)]
 	pub struct GlobalState {
 		client: Arc<Client>,
 		env: Arc<Env>,
-		ratelimits: Arc<Ratelimits>,
+		ratelimits: Arc<Mutex<Ratelimits>>,
 	}
 
 	pub struct GlobalStateRef<'a> {
 		pub client: &'a Client,
 		pub env: &'a Env,
-		pub ratelimits: &'a Ratelimits,
+		pub ratelimits: &'a Mutex<Ratelimits>,
 	}
+
+	// impl<'a> GlobalStateRef<'a> {
+	// 	pub fn ratelimits(&mut self) -> &mut Ratelimits {
+	// 		self.ratelimits.deref_mut()
+	// 	}
+	// }
 
 	impl GlobalState {
 		pub async fn new(client: Arc<Client>, env: Env, ratelimits: Ratelimits) -> Result<Self> {
 			Ok(GlobalState {
 				client,
 				env: Arc::new(env),
-				ratelimits: Arc::new(ratelimits),
+				ratelimits: Arc::new(Mutex::new(ratelimits)),
 			})
 		}
 

@@ -4,10 +4,21 @@ use time::{Duration, OffsetDateTime};
 
 use crate::prelude::*;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct Ratelimits {
 	address: HashMap<Box<str>, Vec<OffsetDateTime>>,
 	discord_id: HashMap<Box<str>, Vec<OffsetDateTime>>,
+}
+
+pub enum Ratelimit {
+	Ratelimited { msg: String },
+	Ok,
+}
+
+impl Ratelimit {
+	pub fn is_ok(&self) -> bool {
+		matches!(self, Ratelimit::Ok)
+	}
 }
 
 /// Simple toml file storage
@@ -28,7 +39,7 @@ impl Ratelimits {
 }
 
 impl Ratelimits {
-	pub fn check(&mut self, address: &str, discord_id: &str) -> bool {
+	pub fn check(&mut self, address: &str, discord_id: &str) -> Ratelimit {
 		let address: Box<str> = address.to_owned().into_boxed_str();
 		let discord_id = discord_id.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
@@ -36,18 +47,28 @@ impl Ratelimits {
 		if !self.address.contains_key(&address) {
 			self.address.insert(address.clone(), Vec::new());
 		}
-		if !Self::address_valid(&now, self.address.get(&address).unwrap()) {
-			return false;
-		}
+		let address_valid = !Self::address_valid(&now, self.address.get(&address).unwrap());
 
 		if !self.discord_id.contains_key(&discord_id) {
 			self.discord_id.insert(discord_id.clone(), Vec::new());
 		}
-		if !Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap()) {
-			return false;
-		}
+		let discord_valid =
+			!Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
 
-		true
+		match (address_valid, discord_valid) {
+			(true, false) => Ratelimit::Ratelimited {
+				msg: String::from("Too many requests from this discord account"),
+			},
+			(false, true) => Ratelimit::Ratelimited {
+				msg: String::from("Too many requests for this wallet address"),
+			},
+			(false, false) => Ratelimit::Ratelimited {
+				msg: String::from(
+					"Too many requests from this discord account and wallet address (impressive)",
+				),
+			},
+			(true, true) => Ratelimit::Ok,
+		}
 	}
 
 	/// Automatically saves
