@@ -42,7 +42,7 @@ mod presence {
 }
 
 mod common {
-	use salt_sdk::{Salt, SaltConfig};
+	
 	use twilight_http::Client;
 
 	use crate::{env::Env, prelude::*};
@@ -73,12 +73,6 @@ mod common {
 				client: &self.client,
 			}
 		}
-	}
-
-	pub fn to_string_pretty<T: serde::Serialize>(value: &T) -> String {
-		serde_json::to_string_pretty(value)
-			.wrap_err("Couldn't JSONify value")
-			.unwrap_or_else(|err| err.to_string())
 	}
 }
 

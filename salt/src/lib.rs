@@ -13,7 +13,6 @@ use std::process::ExitStatus;
 use camino::FromPathBufError;
 use cli::{Command, Output};
 use git::Git;
-use tracing::{Level, span};
 use url::Url;
 use which::which;
 

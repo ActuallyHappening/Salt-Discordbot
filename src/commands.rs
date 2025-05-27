@@ -29,7 +29,7 @@ mod faucet {
 	use twilight_model::{
 		application::interaction::{Interaction, application_command::CommandData},
 		http::interaction::{
-			InteractionResponse, InteractionResponseData, InteractionResponseType,
+			InteractionResponse, InteractionResponseType,
 		},
 	};
 
@@ -155,8 +155,7 @@ mod faucet {
 					.into();
 				}
 				err_string = format!(
-					"Error transacting {}{} to {}:\n{}",
-					amount, token_name, address, err_string
+					"Error transacting {amount}{token_name} to {address}:\n{err_string}"
 				);
 				state
 					.client
@@ -171,8 +170,7 @@ mod faucet {
 					.interaction(interaction.application_id)
 					.create_followup(&interaction.token)
 					.content(&format!(
-						"Successfully faucetted {}{} to {}",
-						amount, token_name, address
+						"Successfully faucetted {amount}{token_name} to {address}"
 					))
 					.await
 					.wrap_err("Couldn't follow up a successful transaction")?;

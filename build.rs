@@ -19,11 +19,9 @@ fn main() -> color_eyre::Result<()> {
 		if sample.get(&key).is_none() {
 			sample[&key] = sentinal.into();
 			errors.push(eyre!("Missing key {} in env.sample.toml", key));
-		} else {
-			if let Item::Value(Value::String(str)) = &sample[&key] {
-				if str.value() == &sentinal.to_owned() {
-					errors.push(eyre!("Please document key {} in env.sample.toml", key));
-				}
+		} else if let Item::Value(Value::String(str)) = &sample[&key] {
+			if str.value() == &sentinal.to_owned() {
+				errors.push(eyre!("Please document key {} in env.sample.toml", key));
 			}
 		}
 	}
@@ -31,9 +29,9 @@ fn main() -> color_eyre::Result<()> {
 	std::fs::write("env.sample.toml", sample.to_string())
 		.wrap_err("Couldn't write back out to env.sample.toml")?;
 
-	if errors.len() > 0 {
+	if !errors.is_empty() {
 		for err in errors {
-			println!("cargo::error={}", err);
+			println!("cargo::error={err}");
 		}
 	}
 

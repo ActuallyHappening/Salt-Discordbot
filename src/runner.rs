@@ -1,12 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{common::GlobalState, prelude::*};
-use tokio::task::JoinSet;
 use twilight_gateway::{Event, EventTypeFlags, Shard, StreamExt as _};
-use twilight_model::{
-	application::interaction::InteractionData,
-	id::{Id, marker::ChannelMarker},
-};
+use twilight_model::application::interaction::InteractionData;
 
 pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 
@@ -33,7 +29,10 @@ pub async fn process_interactions(state: GlobalState, event: Event) {
 	let mut interaction = match event {
 		Event::InteractionCreate(interaction) => interaction.0,
 		ignored => {
-			debug!("ignoring non-interaction event of kind {:?}", ignored.kind());
+			debug!(
+				"ignoring non-interaction event of kind {:?}",
+				ignored.kind()
+			);
 			return;
 		}
 	};
