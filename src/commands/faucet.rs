@@ -1,5 +1,4 @@
-use crate::{prelude::*, ratelimits::Ratelimit};
-use or_poisoned::OrPoisoned;
+use crate::{prelude::*, ratelimits::RateLimit};
 use salt_sdk::{Salt, SaltConfig};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
@@ -65,12 +64,30 @@ impl FaucetCommand {
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
 	) -> color_eyre::Result<()> {
-		let user = match interaction.user {
+		let member = match interaction.member {
+			Some(user) => user,
+			None => {
+				let data = InteractionResponseDataBuilder::new()
+					.content("Not called as a /slash command? `interaction.member` not received\nThis data is used to ratelimit discord users")
+					.build();
+				let response = InteractionResponse {
+					kind: InteractionResponseType::ChannelMessageWithSource,
+					data: Some(data),
+				};
+				state
+					.client
+					.interaction(interaction.application_id)
+					.create_response(interaction.id, &interaction.token, &response)
+					.await?;
+				bail!("Must be provided a member");
+			}
+		};
+		let user = match member.user {
 			Some(user) => user,
 			None => {
 				let data = InteractionResponseDataBuilder::new()
 					.content(
-						"User ID was not provided? This information is required to properly ratelimit",
+						"`interaction.member.user` was not received\nThis data is used to ratelimit discord users",
 					)
 					.build();
 				let response = InteractionResponse {
@@ -81,9 +98,8 @@ impl FaucetCommand {
 					.client
 					.interaction(interaction.application_id)
 					.create_response(interaction.id, &interaction.token, &response)
-					.await
-					.wrap_err("Unable to mark interaction as deferred")?;
-				bail!("Must be provided a user");
+					.await?;
+				bail!("Must be provided a user ID");
 			}
 		};
 		let discord_id = user.id.to_string();
@@ -115,7 +131,7 @@ impl FaucetCommand {
 			.lock()
 			.or_poisoned()
 			.check(&address, &discord_id);
-		if let Ratelimit::Ratelimited { msg } = ratelimit {
+		if let RateLimit::Ratelimited { msg } = ratelimit {
 			let data = InteractionResponseDataBuilder::new()
 				.content(format!(
 					"Couldn't faucet you any tokens because you are ratelimited!\n{}",
@@ -184,6 +200,12 @@ impl FaucetCommand {
 				.await
 				.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
 		} else {
+			state
+				.ratelimits
+				.lock()
+				.or_poisoned()
+				.register(&address, &discord_id)
+				.wrap_err("Couldn't register successful bot transaction")?;
 			state
 				.client
 				.interaction(interaction.application_id)

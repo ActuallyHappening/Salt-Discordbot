@@ -5,28 +5,28 @@ use time::{Duration, OffsetDateTime};
 use crate::prelude::*;
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
-pub struct Ratelimits {
+pub struct RateLimits {
 	address: HashMap<Box<str>, Vec<OffsetDateTime>>,
 	discord_id: HashMap<Box<str>, Vec<OffsetDateTime>>,
 }
 
-pub enum Ratelimit {
+pub enum RateLimit {
 	Ratelimited { msg: String },
 	Ok,
 }
 
-impl Ratelimit {
+impl RateLimit {
 	pub fn is_ok(&self) -> bool {
-		matches!(self, Ratelimit::Ok)
+		matches!(self, RateLimit::Ok)
 	}
 }
 
 /// Simple toml file storage
-impl Ratelimits {
+impl RateLimits {
 	pub fn read() -> Result<Self> {
 		let path = Utf8PathBuf::from("ratelimits.toml");
 		let file = std::fs::read_to_string(path)?;
-		let data: Ratelimits = toml::from_str(&file)?;
+		let data: RateLimits = toml::from_str(&file)?;
 		Ok(data)
 	}
 
@@ -38,8 +38,8 @@ impl Ratelimits {
 	}
 }
 
-impl Ratelimits {
-	pub fn check(&mut self, address: &str, discord_id: &str) -> Ratelimit {
+impl RateLimits {
+	pub fn check(&mut self, address: &str, discord_id: &str) -> RateLimit {
 		let address: Box<str> = address.to_owned().into_boxed_str();
 		let discord_id = discord_id.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
@@ -56,18 +56,18 @@ impl Ratelimits {
 			!Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
 
 		match (address_valid, discord_valid) {
-			(true, false) => Ratelimit::Ratelimited {
+			(true, false) => RateLimit::Ratelimited {
 				msg: String::from("Too many requests from this discord account"),
 			},
-			(false, true) => Ratelimit::Ratelimited {
+			(false, true) => RateLimit::Ratelimited {
 				msg: String::from("Too many requests for this wallet address"),
 			},
-			(false, false) => Ratelimit::Ratelimited {
+			(false, false) => RateLimit::Ratelimited {
 				msg: String::from(
 					"Too many requests from this discord account and wallet address (impressive)",
 				),
 			},
-			(true, true) => Ratelimit::Ok,
+			(true, true) => RateLimit::Ok,
 		}
 	}
 

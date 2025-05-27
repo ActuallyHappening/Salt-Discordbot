@@ -5,6 +5,7 @@ pub(crate) mod prelude {
 	pub(crate) use tracing::{debug, error, info, trace, warn};
 
 	pub(crate) use camino::{Utf8Path, Utf8PathBuf};
+	pub(crate) use or_poisoned::OrPoisoned as _;
 
 	pub(crate) use crate::errors::*;
 }
@@ -42,28 +43,24 @@ mod presence {
 }
 
 mod common {
-	use std::{
-		ops::DerefMut as _,
-		sync::{Mutex, MutexGuard},
-	};
+	use std::sync::Mutex;
 
-	use or_poisoned::OrPoisoned as _;
 	use twilight_http::Client;
 
-	use crate::{env::Env, prelude::*, ratelimits::Ratelimits};
+	use crate::{env::Env, prelude::*, ratelimits::RateLimits};
 
 	/// Cheap to clone
 	#[derive(Clone)]
 	pub struct GlobalState {
 		client: Arc<Client>,
 		env: Arc<Env>,
-		ratelimits: Arc<Mutex<Ratelimits>>,
+		ratelimits: Arc<Mutex<RateLimits>>,
 	}
 
 	pub struct GlobalStateRef<'a> {
 		pub client: &'a Client,
 		pub env: &'a Env,
-		pub ratelimits: &'a Mutex<Ratelimits>,
+		pub ratelimits: &'a Mutex<RateLimits>,
 	}
 
 	// impl<'a> GlobalStateRef<'a> {
@@ -73,7 +70,7 @@ mod common {
 	// }
 
 	impl GlobalState {
-		pub async fn new(client: Arc<Client>, env: Env, ratelimits: Ratelimits) -> Result<Self> {
+		pub async fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits) -> Result<Self> {
 			Ok(GlobalState {
 				client,
 				env: Arc::new(env),
@@ -96,7 +93,7 @@ mod ratelimits;
 
 pub use main::main;
 mod main {
-	use crate::{common::GlobalState, env, prelude::*, ratelimits::Ratelimits};
+	use crate::{common::GlobalState, env, prelude::*, ratelimits::RateLimits};
 
 	use twilight_gateway::{ConfigBuilder, Intents};
 	use twilight_http::Client;
@@ -104,7 +101,7 @@ mod main {
 	pub async fn main() -> Result<()> {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
-		let ratelimits = Ratelimits::read()?;
+		let ratelimits = RateLimits::read()?;
 
 		// Initialize Twilight HTTP client and gateway configuration.
 		let client = Arc::new(Client::new(token.clone()));
