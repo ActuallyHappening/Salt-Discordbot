@@ -293,16 +293,16 @@ mod cli {
 		/// Pipes to terminal and collects
 		pub fn run_and_wait_for_output(mut self) -> Result<Output> {
 			self.pre_logging();
-			
-			let output = self
+
+			let output: Output = self
 				.0
 				.stdout(Stdio::piped())
 				.stderr(Stdio::piped())
 				.spawn()
 				.map_err(Error::FailedToExecute)?
 				.wait_with_output()
-				.map_err(Error::FailedToExecute)?;
-			let output = Output::from(output);
+				.map_err(Error::FailedToExecute)?
+				.into();
 
 			if !output.status.success() {
 				return Err(Error::SubprocessExitedBadlyWithOutput(output));
