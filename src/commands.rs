@@ -14,7 +14,7 @@ pub async fn handle_command(
 	interaction: Interaction,
 	data: CommandData,
 ) -> Result<()> {
-	info!(?data, ?interaction, "Handling command interaction");
+	info!("Handling command interaction: {:#?}", interaction);
 	match &*data.name {
 		// "orders-list" => orders::OrdersListCommand::handle(state.clone(), interaction, data).await,
 		"salt-faucet" => faucet::FaucetCommand::handle(state.get(), interaction, data).await,
@@ -23,8 +23,6 @@ pub async fn handle_command(
 }
 
 mod faucet {
-	use std::borrow::Cow;
-
 	use crate::prelude::*;
 	use salt_sdk::{Salt, SaltConfig};
 	use twilight_interactions::command::{CommandModel, CreateCommand};
@@ -45,9 +43,9 @@ mod faucet {
 	pub(super) enum FaucetCommand {
 		#[command(name = "somnia-shannon")]
 		SomniaShannon(SomniaShannon),
-		#[command(name = "etherium-sepolia")]
+		#[command(name = "sepolia-etherium")]
 		SepoliaEtherium(SepoliaEtherium),
-		#[command(name = "arbitrum-sepolia")]
+		#[command(name = "sepolia-arbitrum")]
 		SepoliaArbitrum(SepoliaArbitrum),
 	}
 

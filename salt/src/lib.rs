@@ -11,7 +11,7 @@ pub mod prelude {
 use std::process::ExitStatus;
 
 use camino::FromPathBufError;
-use cli::Command;
+use cli::{Command, Output};
 use git::Git;
 use url::Url;
 use which::which;
@@ -66,7 +66,10 @@ impl SaltConfig {
 				"BROADCASTING_NETWORK_RPC_NODE_URL",
 				self.broadcasting_network_rpc_node.to_string(),
 			),
-			("BROADCASTING_NETWORK_ID", self.broadcasting_network_id.to_string()),
+			(
+				"BROADCASTING_NETWORK_ID",
+				self.broadcasting_network_id.to_string(),
+			),
 		]
 	}
 }
@@ -88,7 +91,15 @@ pub enum Error {
 	FailedToExecute(std::io::Error),
 
 	#[error("Subprocess exited badly: {0:?}")]
-	SubprocessExited(ExitStatus),
+	SubprocessExitedBadly(ExitStatus),
+
+	#[error(
+		"Subprocess exited badly with exit status {0}"
+	)]
+	SubprocessExitedBadlyWithOutput(Output),
+
+	#[error("Couldn't make anonymous pipe: {0}")]
+	CouldntMakeAnonymousePipe(std::io::Error),
 
 	#[error(
 		"Expected `{bin_name}` binary to be in PATH environment variable or finable with which https://docs.rs/which/latest/which/fn.which.html ({err_msg}): {which}"
@@ -127,17 +138,18 @@ impl Salt {
 		amount: &str,
 		vault_address: &str,
 		recipient_address: &str,
-	) -> Result<()> {
-		self.cmd([
-			"-amount",
-			amount,
-			"-vault-address",
-			vault_address,
-			"-recipient-address",
-			recipient_address,
-		])?
-		.run_and_wait()?;
-		Ok(())
+	) -> Result<Output> {
+		let output = self
+			.cmd([
+				"-amount",
+				amount,
+				"-vault-address",
+				vault_address,
+				"-recipient-address",
+				recipient_address,
+			])?
+			.run_and_wait_for_output()?;
+		Ok(output)
 	}
 
 	pub fn broadcasting_network_id(&self) -> u64 {
@@ -209,6 +221,8 @@ impl Salt {
 }
 
 mod cli {
+	use std::process::{ExitStatus, Stdio};
+
 	use crate::prelude::*;
 
 	pub struct Command(std::process::Command);
@@ -258,13 +272,66 @@ mod cli {
 			initial
 		}
 
-		pub fn run_and_wait(mut self) -> Result<()> {
+		fn pre_logging(&self) {
 			info!("Running command {}", self.debug());
+		}
+
+		pub fn run_and_wait(mut self) -> Result<()> {
+			self.pre_logging();
+
 			let status = self.0.status().map_err(Error::FailedToExecute)?;
+
 			if !status.success() {
-				return Err(Error::SubprocessExited(status));
+				return Err(Error::SubprocessExitedBadly(status));
 			}
 			Ok(())
+		}
+
+		/// Pipes to terminal and collects
+		pub fn run_and_wait_for_output(mut self) -> Result<Output> {
+			let output = self
+				.0
+				.stdout(Stdio::piped())
+				.stderr(Stdio::piped())
+				.spawn()
+				.map_err(Error::FailedToExecute)?
+				.wait_with_output()
+				.map_err(Error::FailedToExecute)?;
+			let output = Output::from(output);
+
+			if !output.status.success() {}
+
+			Ok(output)
+		}
+	}
+
+	#[derive(Debug)]
+	pub struct Output {
+		pub status: ExitStatus,
+		pub stdout: String,
+		pub stderr: String,
+	}
+
+	/// Display impl is status \n stderr \n stdout
+	impl std::fmt::Display for Output {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(
+				f,
+				"{:?}:\nStderr:\n{}\nStdout:\n{}",
+				self.status, self.stderr, self.stdout
+			)
+		}
+	}
+
+	impl From<std::process::Output> for Output {
+		fn from(value: std::process::Output) -> Self {
+			let stdout = String::from_utf8_lossy(&value.stdout);
+			let stderr = String::from_utf8_lossy(&value.stderr);
+			Self {
+				status: value.status,
+				stdout: stdout.into(),
+				stderr: stderr.into(),
+			}
 		}
 	}
 }
@@ -327,9 +394,7 @@ mod git {
 		}
 
 		fn checkout(&self, branch: &str) -> Result<()> {
-			self.cmd()?
-				.with_args(["checkout", branch])
-				.run_and_wait()
+			self.cmd()?.with_args(["checkout", branch]).run_and_wait()
 		}
 	}
 }
