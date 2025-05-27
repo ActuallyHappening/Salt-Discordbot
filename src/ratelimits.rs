@@ -47,13 +47,13 @@ impl RateLimits {
 		if !self.address.contains_key(&address) {
 			self.address.insert(address.clone(), Vec::new());
 		}
-		let address_valid = !Self::address_valid(&now, self.address.get(&address).unwrap());
+		let address_valid = Self::address_valid(&now, self.address.get(&address).unwrap());
 
 		if !self.discord_id.contains_key(&discord_id) {
 			self.discord_id.insert(discord_id.clone(), Vec::new());
 		}
 		let discord_valid =
-			!Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
+			Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
 
 		match (address_valid, discord_valid) {
 			(true, false) => RateLimit::Ratelimited {
