@@ -11,7 +11,7 @@ struct ChainLimits {
 }
 
 #[test]
-fn deserializes() {
+fn chain_limits_serde() {
 	let toml = r##"
 		123 = { address = {}, discord_id = {}}
 		"##;
