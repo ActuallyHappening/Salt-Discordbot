@@ -13,6 +13,7 @@ use std::process::ExitStatus;
 use camino::FromPathBufError;
 use cli::{Command, Output};
 use git::Git;
+use tracing::{Level, span};
 use url::Url;
 use which::which;
 
@@ -93,9 +94,7 @@ pub enum Error {
 	#[error("Subprocess exited badly: {0:?}")]
 	SubprocessExitedBadly(ExitStatus),
 
-	#[error(
-		"Subprocess exited badly with exit status {0}"
-	)]
+	#[error("Subprocess exited badly with exit status {0}")]
 	SubprocessExitedBadlyWithOutput(Output),
 
 	#[error("Couldn't make anonymous pipe: {0}")]
@@ -133,12 +132,14 @@ impl Salt {
 		Ok(salt)
 	}
 
+	#[tracing::instrument(name = "salt_sdk::transaction", skip_all)]
 	pub fn transaction(
 		&self,
 		amount: &str,
 		vault_address: &str,
 		recipient_address: &str,
 	) -> Result<Output> {
+		debug!("Beginning transaction ...");
 		let output = self
 			.cmd([
 				"-amount",
@@ -149,6 +150,8 @@ impl Salt {
 				recipient_address,
 			])?
 			.run_and_wait_for_output()?;
+		debug!("Finished transaction.");
+
 		Ok(output)
 	}
 
@@ -273,7 +276,7 @@ mod cli {
 		}
 
 		fn pre_logging(&self) {
-			info!("Running command {}", self.debug());
+			trace!("Running command {}", self.debug());
 		}
 
 		pub fn run_and_wait(mut self) -> Result<()> {
@@ -289,6 +292,8 @@ mod cli {
 
 		/// Pipes to terminal and collects
 		pub fn run_and_wait_for_output(mut self) -> Result<Output> {
+			self.pre_logging();
+			
 			let output = self
 				.0
 				.stdout(Stdio::piped())
@@ -299,7 +304,9 @@ mod cli {
 				.map_err(Error::FailedToExecute)?;
 			let output = Output::from(output);
 
-			if !output.status.success() {}
+			if !output.status.success() {
+				return Err(Error::SubprocessExitedBadlyWithOutput(output));
+			}
 
 			Ok(output)
 		}

@@ -14,7 +14,7 @@ pub async fn handle_command(
 	interaction: Interaction,
 	data: CommandData,
 ) -> Result<()> {
-	info!("Handling command interaction: {:#?}", interaction);
+	trace!("Handling command interaction: {:#?}", interaction);
 	match &*data.name {
 		// "orders-list" => orders::OrdersListCommand::handle(state.clone(), interaction, data).await,
 		"salt-faucet" => faucet::FaucetCommand::handle(state.get(), interaction, data).await,
@@ -136,10 +136,9 @@ mod faucet {
 			let res = salt
 				.transaction(
 					&amount.to_string(),
-					&address,
 					&state.env.salt_account_address,
-				)
-				.wrap_err("Failed to do transaction in discord bot");
+					&address,
+				);
 
 			if let Err(err) = res {
 				let mut err_string = err.to_string();

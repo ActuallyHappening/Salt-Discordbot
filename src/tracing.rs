@@ -1,7 +1,7 @@
 use time::{UtcOffset, macros::format_description};
 use tracing_subscriber::fmt::time::OffsetTime;
 
-pub fn install_tracing() -> color_eyre::Result<()> {
+pub fn install_tracing(filter: &str) -> color_eyre::Result<()> {
 	use tracing_error::ErrorLayer;
 	use tracing_subscriber::prelude::*;
 	use tracing_subscriber::{EnvFilter, fmt};
@@ -14,7 +14,7 @@ pub fn install_tracing() -> color_eyre::Result<()> {
 
 	let fmt_layer = fmt::layer().with_target(true).with_timer(timer);
 	let filter_layer = EnvFilter::try_from_default_env()
-		.or_else(|_| EnvFilter::try_new("info,salt_discord=trace"))
+		.or_else(|_| EnvFilter::try_new(filter))
 		.unwrap();
 
 	tracing_subscriber::registry()
