@@ -28,9 +28,9 @@ mod presence {
 
 	pub fn presence() -> UpdatePresencePayload {
 		let activity = MinimalActivity {
-			kind: ActivityType::Watching,
-			name: String::from("Salt bot (presence)"),
-			url: None,
+			kind: ActivityType::Listening,
+			name: String::from("Listening to blockchain transactions"),
+			url: Some("https://github.com/ActuallyHappening/Salt-Discordbot".into()),
 		};
 
 		UpdatePresencePayload {
