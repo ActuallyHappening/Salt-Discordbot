@@ -119,7 +119,6 @@ mod faucet {
 				broadcasting_network_rpc_node: rpc_url,
 				broadcasting_network_id: chain_id,
 			};
-			let salt = Salt::new(salt_config)?;
 
 			let response = InteractionResponse {
 				kind: InteractionResponseType::DeferredChannelMessageWithSource,
@@ -132,6 +131,7 @@ mod faucet {
 				.await
 				.wrap_err("Unable to mark interaction as deferred")?;
 
+			let salt = Salt::new(salt_config)?;
 			let amount = 0.01;
 			let res = salt
 				.transaction(

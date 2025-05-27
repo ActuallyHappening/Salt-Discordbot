@@ -159,6 +159,7 @@ impl Salt {
 	}
 
 	/// git pull && deno install && nu fix.nu
+	#[tracing::instrument(name = "salt_sdk::init", skip_all)]
 	fn init(&self) -> Result<()> {
 		let git = self.git()?;
 		git.ensure_latest_branch(

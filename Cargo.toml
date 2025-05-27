@@ -37,6 +37,7 @@ salt-sdk.workspace = true
 camino = "1.1.9"
 toml = "0.8.22"
 url = { version = "2.5.4", features = ["serde"] }
+static-toml = "1.3.0"
 
 [build-dependencies]
 toml = "0.8.22"
