@@ -10,6 +10,20 @@ struct ChainLimits {
 	discord_id: HashMap<Box<str>, Vec<OffsetDateTime>>,
 }
 
+#[test]
+fn deserializes() {
+	let toml = r##"
+		123 = { address = {}, discord_id = {}}
+		"##;
+	let _: RateLimits = toml::from_str(toml).expect("to deserialize");
+
+	let toml = r##"
+		"##;
+	let _: RateLimits = toml::from_str(toml).expect("to deserialize");
+	
+	RateLimits::read().expect("to deserialize");
+}
+
 pub struct Key {
 	pub address: Box<str>,
 	pub discord_id: Box<str>,
@@ -17,7 +31,47 @@ pub struct Key {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[serde(try_from = "ser::RateLimits", into = "ser::RateLimits")]
 pub struct RateLimits(HashMap<u64, ChainLimits>);
+
+/// Doesn't use u64 as key
+mod ser {
+	use std::collections::HashMap;
+
+	use serde::{Deserialize, Serialize};
+
+	use crate::prelude::*;
+
+	#[derive(Serialize, Deserialize)]
+	pub(crate) struct RateLimits(HashMap<String, super::ChainLimits>);
+
+	impl TryFrom<RateLimits> for super::RateLimits {
+		type Error = color_eyre::Report;
+		fn try_from(value: RateLimits) -> Result<Self, Self::Error> {
+			value
+				.0
+				.into_iter()
+				.map(|(k, v)| {
+					let k: u64 = k.parse().wrap_err("Invalid number key")?;
+					Result::<_, Self::Error>::Ok((k, v))
+				})
+				.collect::<Result<_, Self::Error>>()
+				.map(Self)
+		}
+	}
+
+	impl From<super::RateLimits> for RateLimits {
+		fn from(value: super::RateLimits) -> Self {
+			Self(
+				value
+					.0
+					.into_iter()
+					.map(|(k, v)| (k.to_string(), v.into()))
+					.collect(),
+			)
+		}
+	}
+}
 
 impl RateLimits {
 	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
@@ -38,7 +92,7 @@ impl RateLimits {
 			.get_mut(&key.chain_id)
 			.unwrap()
 			.register(&key.address, &key.discord_id);
-		
+
 		self.save()?;
 		Ok(())
 	}
