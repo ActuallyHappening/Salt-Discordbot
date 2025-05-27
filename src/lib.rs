@@ -44,25 +44,28 @@ mod presence {
 mod common {
 	use twilight_http::Client;
 
-	use crate::{env::Env, prelude::*};
+	use crate::{env::Env, prelude::*, ratelimits::{self, Ratelimits}};
 
 	/// Cheap to clone
 	#[derive(Clone)]
 	pub struct GlobalState {
-		env: Arc<Env>,
 		client: Arc<Client>,
+		env: Arc<Env>,
+		ratelimits: Arc<Ratelimits>,
 	}
 
 	pub struct GlobalStateRef<'a> {
-		pub env: &'a Env,
 		pub client: &'a Client,
+		pub env: &'a Env,
+		pub ratelimits: &'a Ratelimits,
 	}
 
 	impl GlobalState {
-		pub async fn new(client: Arc<Client>, env: Env) -> Result<Self> {
+		pub async fn new(client: Arc<Client>, env: Env, ratelimits: Ratelimits) -> Result<Self> {
 			Ok(GlobalState {
 				client,
 				env: Arc::new(env),
+				ratelimits: Arc::new(ratelimits),
 			})
 		}
 
@@ -70,79 +73,18 @@ mod common {
 			GlobalStateRef {
 				env: &self.env,
 				client: &self.client,
+				ratelimits: &self.ratelimits,
 			}
 		}
 	}
 }
 
-mod env {
-	use url::Url;
-
-	use crate::prelude::*;
-
-	#[derive(serde::Deserialize)]
-	#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-	pub struct Env {
-		pub bot_application_id: String,
-		pub bot_token: String,
-
-		pub somnia_shannon_rpc_endpoint: Url,
-		pub sepolia_arbitrum_rpc_endpoint: Url,
-		pub sepolia_etherium_rpc_endpoint: Url,
-		pub faucet_testnet_salt_account_address: String,
-
-		pub private_key: String,
-		pub orchestration_network_rpc_node_url: Url,
-		pub salt_account_address: String,
-	}
-
-	/// Only statically includes toml if building for release,
-	/// for better error messages
-	/// Can refactor this is wanted
-	#[allow(dead_code)]
-	impl Env {
-		pub(crate) fn default() -> Result<Env> {
-			#[cfg(debug_assertions)]
-			return Self::from_local_env();
-			#[cfg(not(debug_assertions))]
-			Self::from_statically_included()
-		}
-
-		fn from_local_env() -> Result<Env> {
-			let path = Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("env.toml");
-			let file = std::fs::read_to_string(path).wrap_err("Couldn't read env.toml")?;
-			let env: Env = toml::from_str(&file)
-				.wrap_err("env.toml not valid toml or missing required key")?;
-			Ok(env)
-		}
-
-		#[cfg(not(debug_assertions))]
-		fn from_statically_included() -> Result<Env> {
-			static_toml::static_toml!(
-				static ENV = include_toml!("env.toml");
-			);
-			Ok(Env {
-				bot_application_id: ENV.bot_application_id.into(),
-				bot_token: ENV.bot_token.into(),
-				somnia_shannon_rpc_endpoint: ENV.somnia_shannon_rpc_endpoint.parse()?,
-				sepolia_arbitrum_rpc_endpoint: ENV.sepolia_arbitrum_rpc_endpoint.parse()?,
-				sepolia_etherium_rpc_endpoint: ENV.sepolia_etherium_rpc_endpoint.parse()?,
-				faucet_testnet_salt_account_address: ENV
-					.faucet_testnet_salt_account_address
-					.parse()?,
-				private_key: ENV.private_key.into(),
-				orchestration_network_rpc_node_url: ENV
-					.orchestration_network_rpc_node_url
-					.parse()?,
-				salt_account_address: ENV.salt_account_address.into(),
-			})
-		}
-	}
-}
+mod env;
+mod ratelimits;
 
 pub use main::main;
 mod main {
-	use crate::{common::GlobalState, env, prelude::*};
+	use crate::{common::GlobalState, env, prelude::*, ratelimits::Ratelimits};
 
 	use twilight_gateway::{ConfigBuilder, Intents};
 	use twilight_http::Client;
@@ -150,6 +92,7 @@ mod main {
 	pub async fn main() -> Result<()> {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
+		let ratelimits = Ratelimits::read()?;
 
 		// Initialize Twilight HTTP client and gateway configuration.
 		let client = Arc::new(Client::new(token.clone()));
@@ -176,7 +119,7 @@ mod main {
 		let mut senders = Vec::with_capacity(shard_len);
 		// let mut tasks = Vec::with_capacity(shard_len);
 		let mut tasks = tokio::task::JoinSet::new();
-		let state = GlobalState::new(client, env).await?;
+		let state = GlobalState::new(client, env, ratelimits).await?;
 
 		for shard in shards {
 			senders.push(shard.sender());

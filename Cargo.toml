@@ -14,7 +14,7 @@ publish = false
 [dependencies]
 color-eyre = "0.6.3"
 serde = { version = "1.0.218", features = ["derive"] }
-time = { version = "0.3.37", features = ["local-offset", "macros"] }
+time = { version = "0.3.37", features = ["local-offset", "macros", "serde"] }
 tokio = { version = "1.43.0", features = ["full"] }
 tracing = "0.1.41"
 tracing-error = "0.2.1"
