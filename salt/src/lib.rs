@@ -35,7 +35,7 @@ pub struct SaltConfig {
 	pub broadcasting_network_rpc_node: Url,
 
 	#[serde(rename = "BROADCASTING_NETWORK_ID")]
-	pub broadcasting_network_id: String,
+	pub broadcasting_network_id: u64,
 }
 
 impl std::fmt::Debug for SaltConfig {
@@ -66,7 +66,7 @@ impl SaltConfig {
 				"BROADCASTING_NETWORK_RPC_NODE_URL",
 				self.broadcasting_network_rpc_node.to_string(),
 			),
-			("BROADCASTING_NETWORK_ID", self.broadcasting_network_id),
+			("BROADCASTING_NETWORK_ID", self.broadcasting_network_id.to_string()),
 		]
 	}
 }
@@ -124,23 +124,23 @@ impl Salt {
 
 	pub fn transaction(
 		&self,
-		amount: String,
-		vault_address: String,
-		recipient_address: String,
+		amount: &str,
+		vault_address: &str,
+		recipient_address: &str,
 	) -> Result<()> {
 		self.cmd([
-			"-amount".into(),
+			"-amount",
 			amount,
-			"-vault-address".into(),
+			"-vault-address",
 			vault_address,
-			"-recipient-address".into(),
+			"-recipient-address",
 			recipient_address,
 		])?
 		.run_and_wait()?;
 		Ok(())
 	}
 
-	pub fn broadcasting_network_id(&self) -> String {
+	pub fn broadcasting_network_id(&self) -> u64 {
 		self.config.broadcasting_network_id.clone()
 	}
 
@@ -155,7 +155,7 @@ impl Salt {
 		let deno = Salt::deno()?;
 		cli::Command::pure(deno)?
 			.with_cwd(self.project_folder.clone())
-			.with_args(["install".into()])
+			.with_args(["install"])
 			.run_and_wait()?;
 
 		if self.project_folder.join("fix.nu").exists() {
@@ -167,7 +167,7 @@ impl Salt {
 			)?;
 			cli::Command::pure(nu)?
 				.with_cwd(self.project_folder.clone())
-				.with_args(["fix.nu".into()])
+				.with_args(["fix.nu"])
 				.run_and_wait()?;
 		}
 
@@ -183,7 +183,7 @@ impl Salt {
 		which("deno", "required javascript runtime")
 	}
 
-	fn cmd(&self, args: impl IntoIterator<Item = String>) -> Result<Command> {
+	fn cmd(&self, args: impl IntoIterator<Item = impl AsRef<str>>) -> Result<Command> {
 		let cmd = cli::Command::pure(Salt::deno()?)?
 			.with_cwd(self.project_folder.clone())
 			.with_args(
@@ -233,8 +233,13 @@ mod cli {
 			self
 		}
 
-		pub fn with_args(mut self, args: impl IntoIterator<Item = String>) -> Self {
-			self.0.args(args);
+		pub fn with_args(mut self, args: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+			// allocates them all as strings,
+			// but what can you do? this is a type-level restriction,
+			// it is true that
+			// impl AsRef<str>: impl AsRef<OsStr>
+			// for all T
+			self.0.args(args.into_iter().map(|s| s.as_ref().to_owned()));
 			self
 		}
 
@@ -299,7 +304,7 @@ mod git {
 
 		fn pull(&self) -> Result<()> {
 			debug!("Running `git pull` in directory {}", &self.project_folder);
-			self.cmd()?.with_args(["pull".into()]).run_and_wait()
+			self.cmd()?.with_args(["pull"]).run_and_wait()
 		}
 
 		fn clone(&self, repository_url: Url) -> Result<()> {
@@ -323,7 +328,7 @@ mod git {
 
 		fn checkout(&self, branch: &str) -> Result<()> {
 			self.cmd()?
-				.with_args(["checkout".into(), branch.into()])
+				.with_args(["checkout", branch])
 				.run_and_wait()
 		}
 	}

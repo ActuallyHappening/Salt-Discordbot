@@ -45,25 +45,31 @@ mod common {
 	use salt_sdk::{Salt, SaltConfig};
 	use twilight_http::Client;
 
-	use crate::prelude::*;
+	use crate::{env::Env, prelude::*};
 
 	/// Cheap to clone
 	#[derive(Clone)]
 	pub struct GlobalState {
+		env: Arc<Env>,
 		client: Arc<Client>,
 	}
 
 	pub struct GlobalStateRef<'a> {
+		pub env: &'a Env,
 		pub client: &'a Client,
 	}
 
 	impl GlobalState {
-		pub async fn new(client: Arc<Client>) -> Result<Self> {
-			Ok(GlobalState { client, })
+		pub async fn new(client: Arc<Client>, env: Env) -> Result<Self> {
+			Ok(GlobalState {
+				client,
+				env: Arc::new(env),
+			})
 		}
 
 		pub fn get(&self) -> GlobalStateRef<'_> {
 			GlobalStateRef {
+				env: &self.env,
 				client: &self.client,
 			}
 		}
@@ -88,12 +94,13 @@ mod env {
 		pub bot_token: String,
 
 		pub somnia_shannon_rpc_endpoint: Url,
-		pub sepolia_abitrum_rpc_endpoint: Url,
+		pub sepolia_arbitrum_rpc_endpoint : Url,
 		pub sepolia_etherium_rpc_endpoint: Url,
 		pub faucet_testnet_salt_account_address: String,
 
 		pub private_key: String,
-		pub orchestration_network_rpc_node_url: String,
+		pub orchestration_network_rpc_node_url: Url,
+		pub salt_account_address: String,
 	}
 
 	impl Env {
@@ -116,7 +123,7 @@ mod main {
 
 	pub async fn main() -> Result<()> {
 		let env = env::Env::from_local_env()?;
-		let token = env.bot_token;
+		let token = env.bot_token.clone();
 
 		// Initialize Twilight HTTP client and gateway configuration.
 		let client = Arc::new(Client::new(token.clone()));
@@ -143,7 +150,7 @@ mod main {
 		let mut senders = Vec::with_capacity(shard_len);
 		// let mut tasks = Vec::with_capacity(shard_len);
 		let mut tasks = tokio::task::JoinSet::new();
-		let state = GlobalState::new(client).await?;
+		let state = GlobalState::new(client, env).await?;
 
 		for shard in shards {
 			senders.push(shard.sender());
