@@ -1,5 +1,6 @@
+#![allow(unused_imports)]
+
 pub(crate) mod prelude {
-	#![allow(unused_imports)]
 	pub(crate) use std::sync::Arc;
 	#[allow(unused_imports)]
 	pub(crate) use tracing::{debug, error, info, trace, warn};
