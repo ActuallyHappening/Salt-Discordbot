@@ -182,7 +182,7 @@ impl Salt {
 			)?;
 			cli::Command::pure(nu)?
 				.with_cwd(self.project_folder.clone())
-				.with_args(["fix.nu"])
+				.with_args(["patch.nu"])
 				.run_and_wait()?;
 		}
 
