@@ -28,6 +28,7 @@ pub struct Key {
 	pub address: Box<str>,
 	pub discord_id: Box<str>,
 	pub chain_id: u64,
+	pub chain_name: String,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -120,7 +121,7 @@ impl RateLimits {
 }
 
 impl ChainLimits {
-	pub fn check(&mut self, address: &str, discord_id: &str) -> Result<(), RateLimitErr> {
+	pub fn check(&mut self, address: &str, discord_id: &str, chain_name: &str) -> Result<(), RateLimitErr> {
 		let address: Box<str> = address.to_owned().into_boxed_str();
 		let discord_id = discord_id.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
@@ -139,8 +140,8 @@ impl ChainLimits {
 			(true, false) => Err(RateLimitErr(String::from(
 				"Too many requests from this discord account",
 			))),
-			(false, true) => Err(RateLimitErr(String::from(
-				"Too many requests for this wallet address",
+			(false, true) => Err(RateLimitErr(format!(
+				"You've reached your limit for fauceting to this wallet address on {chain_name}. Please try again in 24 hours.",
 			))),
 			(false, false) => Err(RateLimitErr(String::from(
 				"Too many requests from this discord account and wallet address (impressive)",

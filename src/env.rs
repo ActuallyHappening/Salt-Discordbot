@@ -11,6 +11,7 @@ pub struct Env {
 	pub somnia_shannon_rpc_endpoint: Url,
 	pub sepolia_arbitrum_rpc_endpoint: Url,
 	pub sepolia_etherium_rpc_endpoint: Url,
+	pub polygon_amoy_rpc_endpoint: Url,
 	pub faucet_testnet_salt_account_address: String,
 
 	pub private_key: String,

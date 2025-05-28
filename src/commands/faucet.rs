@@ -21,6 +21,8 @@ pub(super) enum FaucetCommand {
 	SepoliaEtherium(SepoliaEtherium),
 	#[command(name = "sepolia-arb-eth")]
 	SepoliaArbitrum(SepoliaArbitrum),
+	#[command(name = "polygon-amoy")]
+	PolygonAmoy(PolygonAmoy),
 }
 
 /// Faucet 0.01 on Somnia Shannon SST tokens
@@ -31,7 +33,7 @@ pub struct SomniaShannon {
 	pub address: String,
 }
 
-/// Faucet 0.01ETH on Ethereum Sepolia
+/// Faucet 0.005ETH on Ethereum Sepolia
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
 #[command(name = "sepolia-eth")]
 pub struct SepoliaEtherium {
@@ -39,10 +41,18 @@ pub struct SepoliaEtherium {
 	pub address: String,
 }
 
-/// Faucet 0.01ETH on Arbitrum Sepolia (gas for salt orchestration)
+/// Faucet 0.005ETH on Arbitrum Sepolia (gas for salt orchestration)
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
 #[command(name = "sepolia-arb-eth")]
 pub struct SepoliaArbitrum {
+	/// Your personal wallet address
+	pub address: String,
+}
+
+/// Faucet 0.005ETH on Polygon Amoy
+#[derive(Debug, Clone, CommandModel, CreateCommand)]
+#[command(name = "polygon-amoy")]
+pub struct PolygonAmoy {
 	/// Your personal wallet address
 	pub address: String,
 }
@@ -104,24 +114,38 @@ impl FaucetCommand {
 		};
 		let discord_id = user.id.to_string();
 
-		let (chain_id, rpc_url, address, token_name) = match self {
+		let (chain_id, rpc_url, address, chain_name, token_name, amount) = match self {
 			FaucetCommand::SepoliaArbitrum(data) => (
 				421614,
 				state.env.sepolia_arbitrum_rpc_endpoint.clone(),
 				data.address,
-				"ETH (Sepolia Arbitrum)",
+				"ETH",
+				"Sepolia Arbitrum",
+				0.005,
 			),
 			FaucetCommand::SepoliaEtherium(data) => (
 				11155111,
 				state.env.sepolia_etherium_rpc_endpoint.clone(),
 				data.address,
-				"ETH (Sepolia Ethereum)",
+				"ETH",
+				"Sepolia Ethereum",
+				0.005,
 			),
 			FaucetCommand::SomniaShannon(data) => (
 				50312,
 				state.env.somnia_shannon_rpc_endpoint.clone(),
 				data.address,
-				"SST (Somnia Shannon)",
+				"SST",
+				"Somnia Shannon",
+				0.01,
+			),
+			FaucetCommand::PolygonAmoy(data) => (
+				80002,
+				state.env.polygon_amoy_rpc_endpoint.clone(),
+				data.address,
+				"AMOY",
+				"Polygon Amoy",
+				0.005,
 			),
 		};
 
@@ -130,6 +154,7 @@ impl FaucetCommand {
 			address: address.clone().into_boxed_str(),
 			discord_id: discord_id.into_boxed_str(),
 			chain_id,
+			chain_name: chain_name.to_owned(),
 		};
 		let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
 		if let Err(msg) = ratelimit {
@@ -170,7 +195,6 @@ impl FaucetCommand {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let amount = 0.01;
 		let res = salt.transaction(
 			&amount.to_string(),
 			&state.env.salt_account_address,
@@ -212,7 +236,7 @@ impl FaucetCommand {
 				.interaction(interaction.application_id)
 				.create_followup(&interaction.token)
 				.content(&format!(
-					"Successful faucet of {amount}{token_name} to {address}"
+					"Successful faucet of {amount}{token_name} ({chain_name}) to {address}"
 				))
 				.await
 				.wrap_err("Couldn't follow up a successful transaction")?;
