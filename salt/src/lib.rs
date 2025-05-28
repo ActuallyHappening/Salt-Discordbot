@@ -203,10 +203,8 @@ impl Salt {
 			.with_cwd(self.project_folder.clone())
 			.with_args(
 				[
-					"run",
-					"--unstable-sloppy-imports",
-					"-A",
-					"src/index.ts",
+					"task",
+					"start",
 					"--",
 					"-use-cli-only",
 				]
