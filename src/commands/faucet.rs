@@ -17,13 +17,13 @@ use crate::common::GlobalStateRef;
 pub(super) enum FaucetCommand {
 	#[command(name = "somnia-shannon")]
 	SomniaShannon(SomniaShannon),
-	#[command(name = "sepolia-etherium")]
+	#[command(name = "sepolia-eth")]
 	SepoliaEtherium(SepoliaEtherium),
-	#[command(name = "sepolia-arbitrum")]
+	#[command(name = "sepolia-arb-eth")]
 	SepoliaArbitrum(SepoliaArbitrum),
 }
 
-/// Faucet 0.01 Somnia Shannon SST tokens
+/// Faucet 0.01 on Somnia Shannon SST tokens
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
 #[command(name = "somnia-shannon")]
 pub struct SomniaShannon {
@@ -31,17 +31,17 @@ pub struct SomniaShannon {
 	pub address: String,
 }
 
-/// Faucet 0.01ETH Sepolia
+/// Faucet 0.01ETH on Ethereum Sepolia
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
-#[command(name = "sepolia-etherium")]
+#[command(name = "sepolia-eth")]
 pub struct SepoliaEtherium {
 	/// Your personal wallet address
 	pub address: String,
 }
 
-/// Faucet 0.01ETH Arbitrum Sepolia (gas for salt orchestration)
+/// Faucet 0.01ETH on Arbitrum Sepolia (gas for salt orchestration)
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
-#[command(name = "sepolia-arbitrum")]
+#[command(name = "sepolia-arb-eth")]
 pub struct SepoliaArbitrum {
 	/// Your personal wallet address
 	pub address: String,
@@ -109,19 +109,19 @@ impl FaucetCommand {
 				421614,
 				state.env.sepolia_arbitrum_rpc_endpoint.clone(),
 				data.address,
-				"ETH (sepolia arbiturm)",
+				"ETH (Sepolia Arbitrum)",
 			),
 			FaucetCommand::SepoliaEtherium(data) => (
 				11155111,
 				state.env.sepolia_etherium_rpc_endpoint.clone(),
 				data.address,
-				"ETH (sepolia etherium)",
+				"ETH (Sepolia Ethereum)",
 			),
 			FaucetCommand::SomniaShannon(data) => (
 				50312,
 				state.env.somnia_shannon_rpc_endpoint.clone(),
 				data.address,
-				"SST (somnia shannon)",
+				"SST (Somnia Shannon)",
 			),
 		};
 
@@ -212,7 +212,7 @@ impl FaucetCommand {
 				.interaction(interaction.application_id)
 				.create_followup(&interaction.token)
 				.content(&format!(
-					"Successfully faucetted {amount}{token_name} to {address}"
+					"Successful faucet of {amount}{token_name} to {address}"
 				))
 				.await
 				.wrap_err("Couldn't follow up a successful transaction")?;
