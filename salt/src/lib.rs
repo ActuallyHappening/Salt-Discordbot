@@ -148,10 +148,18 @@ impl Salt {
 				"-recipient-address",
 				recipient_address,
 			])?
-			.run_and_wait_for_output()?;
-		debug!("Finished transaction.");
+			.run_and_wait_for_output();
+		
+		debug!(
+			"Finished transaction {}",
+			if output.is_ok() {
+				"successfully"
+			} else {
+				"unsuccessfully"
+			}
+		);
 
-		Ok(output)
+		output
 	}
 
 	pub fn broadcasting_network_id(&self) -> u64 {
@@ -202,14 +210,9 @@ impl Salt {
 		let cmd = cli::Command::pure(Salt::deno()?)?
 			.with_cwd(self.project_folder.clone())
 			.with_args(
-				[
-					"task",
-					"start",
-					"--",
-					"-use-cli-only",
-				]
-				.into_iter()
-				.map(String::from),
+				["task", "start", "--", "-use-cli-only"]
+					.into_iter()
+					.map(String::from),
 			)
 			.with_args(args)
 			.with_envs(self.config.clone().iter());
@@ -364,13 +367,11 @@ mod git {
 		}
 
 		pub fn ensure_latest_branch(&self, repository_url: Url, branch: &str) -> Result<()> {
-			if self.project_folder.exists() {
-				// assume already checked out
-				self.pull()?;
-			} else {
+			if !self.project_folder.exists() {
 				self.clone(repository_url)?;
 			}
 			self.checkout(branch)?;
+			self.pull()?;
 			Ok(())
 		}
 

@@ -285,6 +285,7 @@ impl FaucetCommand {
 			.await
 			.wrap_err("Unable to mark interaction as deferred")?;
 
+		// do transaction
 		let salt_config = SaltConfig {
 			private_key: state.env.private_key.clone(),
 			orchestration_network_rpc_node: state.env.orchestration_network_rpc_node_url.clone(),
@@ -299,6 +300,7 @@ impl FaucetCommand {
 		);
 
 		if let Err(err) = res {
+			error!(?err, "Failed to do salt transaction");
 			let mut err_string = err.to_string();
 			
 			if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
