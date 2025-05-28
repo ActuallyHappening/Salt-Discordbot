@@ -300,6 +300,11 @@ impl FaucetCommand {
 
 		if let Err(err) = res {
 			let mut err_string = err.to_string();
+			
+			if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
+				err_string = output.stderr;
+			}
+			
 			if err_string.len() > 1900 {
 				// only keeps first 1900 bytes, avoiding a panic if using String.split_off
 				// https://doc.rust-lang.org/stable/std/string/struct.String.html#method.split_off
