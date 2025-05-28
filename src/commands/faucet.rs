@@ -114,7 +114,7 @@ impl FaucetCommand {
 		};
 		let discord_id = user.id.to_string();
 
-		let (chain_id, rpc_url, address, chain_name, token_name, amount) = match self {
+		let (chain_id, rpc_url, address, token_name, chain_name, amount) = match self {
 			FaucetCommand::SepoliaArbitrum(data) => (
 				421614,
 				state.env.sepolia_arbitrum_rpc_endpoint.clone(),
