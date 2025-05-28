@@ -144,7 +144,7 @@ impl ChainLimits {
 				"You've reached your limit for fauceting to this wallet address on {chain_name}. Please try again in 24 hours.",
 			))),
 			(false, false) => Err(RateLimitErr(format!(
-				"You've reached your limit for fauceting to this wallet address and your discord account on {chain_name}. Please try again in 24 hours.",
+				"Impressive! You've reached your limit for fauceting to this wallet address and your discord account on {chain_name}. Please try again in 24 hours.",
 			))),
 			(true, true) => Ok(()),
 		}
