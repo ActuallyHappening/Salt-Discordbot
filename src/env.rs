@@ -21,7 +21,7 @@ pub struct Env {
 
 /// Only statically includes toml if building for release,
 /// for better error messages
-/// Can refactor this is wanted
+/// Can refactor this if wanted
 #[allow(dead_code)]
 impl Env {
 	pub(crate) fn default() -> Result<Env> {

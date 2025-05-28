@@ -29,7 +29,7 @@ mod presence {
 	pub fn presence() -> UpdatePresencePayload {
 		let activity = MinimalActivity {
 			kind: ActivityType::Listening,
-			name: String::from("Listening to blockchain transactions"),
+			name: String::from("blockchain transactions in the ether ..."),
 			url: Some("https://github.com/ActuallyHappening/Salt-Discordbot".into()),
 		};
 
