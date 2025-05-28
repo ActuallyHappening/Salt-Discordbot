@@ -210,7 +210,7 @@ impl Salt {
 		let cmd = cli::Command::pure(Salt::deno()?)?
 			.with_cwd(self.project_folder.clone())
 			.with_args(
-				["task", "start", "--", "-use-cli-only"]
+				["task", "--quiet", "start", "--", "-use-cli-only"]
 					.into_iter()
 					.map(String::from),
 			)
