@@ -82,7 +82,7 @@ impl RateLimits {
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
-			.check(&key.address, &key.discord_id)
+			.check(&key.address, &key.discord_id, &key.chain_name)
 	}
 
 	pub fn register(&mut self, key: &Key) -> Result<()> {
@@ -137,14 +137,14 @@ impl ChainLimits {
 		let discord_valid = Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
 
 		match (address_valid, discord_valid) {
-			(true, false) => Err(RateLimitErr(String::from(
-				"Too many requests from this discord account",
+			(true, false) => Err(RateLimitErr(format!(
+				"You've reached your limit for fauceting for your discord account on {chain_name}. Please try again in 24 hours.",
 			))),
 			(false, true) => Err(RateLimitErr(format!(
 				"You've reached your limit for fauceting to this wallet address on {chain_name}. Please try again in 24 hours.",
 			))),
-			(false, false) => Err(RateLimitErr(String::from(
-				"Too many requests from this discord account and wallet address (impressive)",
+			(false, false) => Err(RateLimitErr(format!(
+				"You've reached your limit for fauceting to this wallet address *and* your discord account on {chain_name}. Please try again in 24 hours.",
 			))),
 			(true, true) => Ok(()),
 		}
