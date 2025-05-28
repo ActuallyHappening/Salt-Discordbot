@@ -50,6 +50,7 @@ impl Env {
 			somnia_shannon_rpc_endpoint: ENV.somnia_shannon_rpc_endpoint.parse()?,
 			sepolia_arbitrum_rpc_endpoint: ENV.sepolia_arbitrum_rpc_endpoint.parse()?,
 			sepolia_etherium_rpc_endpoint: ENV.sepolia_etherium_rpc_endpoint.parse()?,
+			polygon_amoy_rpc_endpoint: ENV.polygon_amoy_rpc_endpoint.parse()?,
 			faucet_testnet_salt_account_address: ENV.faucet_testnet_salt_account_address.parse()?,
 			private_key: ENV.private_key.into(),
 			orchestration_network_rpc_node_url: ENV.orchestration_network_rpc_node_url.parse()?,
