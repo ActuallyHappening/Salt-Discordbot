@@ -9,4 +9,5 @@
 !Cargo.toml
 !env.sample.toml
 !README.md
+!TODO.md
 !rustfmt.toml
