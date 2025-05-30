@@ -67,7 +67,7 @@ mod main {
 		let mut senders = Vec::with_capacity(shard_len);
 		// let mut tasks = Vec::with_capacity(shard_len);
 		let mut tasks = tokio::task::JoinSet::new();
-		let state = GlobalState::new(client, env, ratelimits).await?;
+		let state = GlobalState::new(client, env, ratelimits)?;
 
 		for shard in shards {
 			senders.push(shard.sender());
@@ -146,7 +146,7 @@ mod common {
 	// }
 
 	impl GlobalState {
-		pub async fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits) -> Result<Self> {
+		pub fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits) -> Result<Self> {
 			Ok(GlobalState {
 				client,
 				env: Arc::new(env),
