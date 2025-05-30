@@ -19,7 +19,10 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 
 		// Process Discord events
 		tracing::info!(kind = ?event.kind(), shard = ?shard.id().number(), "received event");
-		tokio::spawn(process_interactions(state.clone(), event));
+		let state = state.clone();
+		tokio::spawn(async move {
+			process_interactions(state, event).await;
+		});
 	}
 }
 

@@ -224,12 +224,12 @@ impl Salt {
 	}
 }
 
-mod cli {
+pub mod cli {
 	use std::process::{ExitStatus, Stdio};
 
 	use crate::prelude::*;
 
-	pub struct Command(std::process::Command);
+	pub(crate) struct Command(std::process::Command);
 
 	impl Command {
 		pub fn pure(cmd: Utf8PathBuf) -> Result<Command> {
