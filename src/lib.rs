@@ -37,7 +37,12 @@ mod main {
 			.identify_properties(
 				twilight_model::gateway::payload::outgoing::identify::IdentifyProperties {
 					browser: "twilight.rs".to_owned(),
-					device: "twilight.rs".to_owned(),
+					device: if cfg!(debug_assertions) {
+						"Caleb's personal PC"
+					} else {
+						"Salt-managed server"
+					}
+					.to_owned(),
 					os: std::env::consts::OS.to_owned(),
 				},
 			)
