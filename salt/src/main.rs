@@ -5,7 +5,8 @@ use ::tracing::{debug, error, info, trace, warn};
 use color_eyre::eyre::Context as _;
 use salt_sdk::Salt;
 
-fn main() -> color_eyre::Result<()> {
+#[tokio::main]
+async fn main() -> color_eyre::Result<()> {
 	tracing::install_tracing("info,salt_sdk=trace,salt_cli=trace")?;
 
 	trace!("Started salt-sdk tracing");
@@ -24,7 +25,9 @@ fn main() -> color_eyre::Result<()> {
 	let vault_address = rl.readline("Vault address: ")?;
 	let recipient_address = rl.readline("Recipient address: ")?;
 
-	salt.transaction(&amount, &vault_address, &recipient_address).wrap_err("Couldn't do salt transaction")?;
+	salt.transaction(&amount, &vault_address, &recipient_address)
+		.await
+		.wrap_err("Couldn't do salt transaction")?;
 
 	Ok(())
 }

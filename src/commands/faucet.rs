@@ -297,7 +297,7 @@ impl FaucetCommand {
 			&amount.to_string(),
 			&state.env.salt_account_address,
 			&address,
-		);
+		).await;
 
 		if let Err(err) = res {
 			error!(?err, "Failed to do salt transaction");

@@ -11,7 +11,7 @@ pub mod prelude {
 use std::process::ExitStatus;
 
 use camino::FromPathBufError;
-use cli::{Command, Output};
+use cli::{AsyncCommand, Output};
 use git::Git;
 use url::Url;
 use which::which;
@@ -132,7 +132,7 @@ impl Salt {
 	}
 
 	#[tracing::instrument(name = "salt_sdk::transaction", skip_all)]
-	pub fn transaction(
+	pub async fn transaction(
 		&self,
 		amount: &str,
 		vault_address: &str,
@@ -148,7 +148,7 @@ impl Salt {
 				"-recipient-address",
 				recipient_address,
 			])?
-			.run_and_wait_for_output();
+			.run_and_wait_for_output().await;
 
 		debug!(
 			"Finished transaction {}",
@@ -206,8 +206,8 @@ impl Salt {
 		which("deno", "required javascript runtime")
 	}
 
-	fn cmd(&self, args: impl IntoIterator<Item = impl AsRef<str>>) -> Result<Command> {
-		let cmd = cli::Command::pure(Salt::deno()?)?
+	fn cmd(&self, args: impl IntoIterator<Item = impl AsRef<str>>) -> Result<AsyncCommand> {
+		let cmd = cli::AsyncCommand::pure(Salt::deno()?)?
 			.with_cwd(self.project_folder.clone())
 			.with_args(
 				["task", "--quiet", "start", "--", "-use-cli-only"]
