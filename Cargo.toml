@@ -1,5 +1,6 @@
 [workspace]
-members = ["salt"]
+members = [ "salt"]
+exclude = ["private-apis"]
 
 [workspace.dependencies]
 salt-sdk = { path = "salt"}

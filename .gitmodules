@@ -1,0 +1,3 @@
+[submodule "private-apis"]
+	path = private-apis
+	url = https://github.com/KagamiDigital/salt-faucet.git

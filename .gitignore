@@ -3,7 +3,9 @@
 !src
 !build.rs
 !salt
+!private-apis
 
+!.gitmodules
 !.gitignore
 !Cargo.lock
 !Cargo.toml
