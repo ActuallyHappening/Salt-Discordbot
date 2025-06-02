@@ -5,7 +5,6 @@ exclude = ["private-apis"]
 [workspace.dependencies]
 salt-sdk = { path = "salt"}
 
-
 [package]
 name = "salt-discordbot"
 version = "0.1.0"
@@ -41,6 +40,7 @@ url = { version = "2.5.4", features = ["serde"] }
 static-toml = "1.3.0"
 or_poisoned = "0.1.0"
 thiserror = "2.0.12"
+salt-private-apis = { version = "0.1.0", path = "private-apis" }
 
 [build-dependencies]
 toml = "0.8.22"
