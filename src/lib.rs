@@ -131,12 +131,14 @@ mod common {
 		client: Arc<Client>,
 		env: Arc<Env>,
 		ratelimits: Arc<Mutex<RateLimits>>,
+		private_apis: salt_private_apis::Client,
 	}
 
 	pub struct GlobalStateRef<'a> {
 		pub client: &'a Client,
 		pub env: &'a Env,
 		pub ratelimits: &'a Mutex<RateLimits>,
+		pub private_apis: &'a salt_private_apis::Client
 	}
 
 	// impl<'a> GlobalStateRef<'a> {
@@ -151,6 +153,7 @@ mod common {
 				client,
 				env: Arc::new(env),
 				ratelimits: Arc::new(Mutex::new(ratelimits)),
+				private_apis: salt_private_apis::Client::new(),
 			})
 		}
 
@@ -159,6 +162,18 @@ mod common {
 				env: &self.env,
 				client: &self.client,
 				ratelimits: &self.ratelimits,
+				private_apis: &self.private_apis,
+			}
+		}
+	}
+
+	impl<'a> GlobalStateRef<'a> {
+		pub fn reborrow(&self) -> GlobalStateRef<'_> {
+			GlobalStateRef {
+				env: self.env,
+				client: self.client,
+				ratelimits: self.ratelimits,
+				private_apis: self.private_apis,
 			}
 		}
 	}

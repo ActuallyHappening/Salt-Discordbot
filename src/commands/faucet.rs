@@ -1,5 +1,6 @@
-use crate::{prelude::*, ratelimits::Key};
+use crate::{commands::faucet::chains::SupportedChain, prelude::*, ratelimits::Key};
 use chains::FaucetBlockchain as _;
+use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
@@ -27,6 +28,29 @@ pub(super) enum FaucetCommand {
 
 	#[command(name = "polygon-amoy")]
 	PolygonAmoy(chains::PolygonAmoy),
+
+	#[command(name = "check")]
+	Check(Check),
+
+	#[command(name = "ratelimits")]
+	Ratelimits(CheckRatelimits),
+}
+
+/// Check which chains your wallet address is valid for,
+/// including ratelimits
+#[derive(Debug, Clone, CommandModel, CreateCommand)]
+#[command(name = "check")]
+pub(super) struct Check {
+	/// Your personal wallet address
+	pub address: String,
+}
+
+/// Check all your ratelimits by chain
+#[derive(Debug, Clone, CommandModel, CreateCommand)]
+#[command(name = "ratelimits")]
+pub(super) struct CheckRatelimits {
+	/// Your personal wallet address
+	pub address: String,
 }
 
 mod chains {
@@ -54,36 +78,44 @@ mod chains {
 		pub chain_name: &'static str,
 	}
 
-	impl FaucetBlockchain for FaucetCommand {
+	#[derive(Debug, Clone)]
+	pub(super) enum SupportedChain {
+		SomniaShannon(SomniaShannon),
+		SepoliaEtherium(SepoliaEtherium),
+		SepoliaArbitrum(SepoliaArbitrum),
+		PolygonAmoy(PolygonAmoy),
+	}
+
+	impl FaucetBlockchain for SupportedChain {
 		fn info(&self, env: &Env) -> BlockchainInfo {
 			match self {
-				FaucetCommand::SomniaShannon(chain) => chain.info(env),
-				FaucetCommand::PolygonAmoy(chain) => chain.info(env),
-				FaucetCommand::SepoliaArbitrum(chain) => chain.info(env),
-				FaucetCommand::SepoliaEtherium(chain) => chain.info(env),
+				SupportedChain::SomniaShannon(chain) => chain.info(env),
+				SupportedChain::PolygonAmoy(chain) => chain.info(env),
+				SupportedChain::SepoliaArbitrum(chain) => chain.info(env),
+				SupportedChain::SepoliaEtherium(chain) => chain.info(env),
 			}
 		}
 
 		fn address(&self) -> String {
 			match self {
-				FaucetCommand::SomniaShannon(chain) => chain.address(),
-				FaucetCommand::PolygonAmoy(chain) => chain.address(),
-				FaucetCommand::SepoliaArbitrum(chain) => chain.address(),
-				FaucetCommand::SepoliaEtherium(chain) => chain.address(),
+				SupportedChain::SomniaShannon(chain) => chain.address(),
+				SupportedChain::PolygonAmoy(chain) => chain.address(),
+				SupportedChain::SepoliaArbitrum(chain) => chain.address(),
+				SupportedChain::SepoliaEtherium(chain) => chain.address(),
 			}
 		}
 
 		fn amount(&self) -> String {
 			match self {
-				FaucetCommand::SomniaShannon(chain) => chain.amount(),
-				FaucetCommand::PolygonAmoy(chain) => chain.amount(),
-				FaucetCommand::SepoliaArbitrum(chain) => chain.amount(),
-				FaucetCommand::SepoliaEtherium(chain) => chain.amount(),
+				SupportedChain::SomniaShannon(chain) => chain.amount(),
+				SupportedChain::PolygonAmoy(chain) => chain.amount(),
+				SupportedChain::SepoliaArbitrum(chain) => chain.amount(),
+				SupportedChain::SepoliaEtherium(chain) => chain.amount(),
 			}
 		}
 	}
 
-	/// Faucet 0.01 on Somnia Shannon SST tokens
+	/// Faucet 0.01 on Somnia Shannon STT tokens
 	#[derive(Debug, Clone, CommandModel, CreateCommand)]
 	#[command(name = "somnia-shannon")]
 	pub struct SomniaShannon {
@@ -96,7 +128,7 @@ mod chains {
 			BlockchainInfo {
 				chain_id: 50312,
 				rpc_url: env.somnia_shannon_rpc_endpoint.clone(),
-				token_name: "SST",
+				token_name: "STT",
 				chain_name: "Somnia Shannon",
 			}
 		}
@@ -180,6 +212,52 @@ mod chains {
 	}
 }
 
+async fn discord_user_id(
+	state: GlobalStateRef<'_>,
+	interaction: Interaction,
+) -> color_eyre::Result<String> {
+	let member = match interaction.member {
+		Some(user) => user,
+		None => {
+			let data = InteractionResponseDataBuilder::new()
+				.content("Not called as a /slash command? `interaction.member` not received\nThis data is used to ratelimit discord users")
+				.build();
+			let response = InteractionResponse {
+				kind: InteractionResponseType::ChannelMessageWithSource,
+				data: Some(data),
+			};
+			state
+				.client
+				.interaction(interaction.application_id)
+				.create_response(interaction.id, &interaction.token, &response)
+				.await?;
+			bail!("Must be provided a member");
+		}
+	};
+	let user = match member.user {
+		Some(user) => user,
+		None => {
+			let data = InteractionResponseDataBuilder::new()
+				.content(
+					"`interaction.member.user` was not received\nThis data is used to ratelimit discord users",
+				)
+				.build();
+			let response = InteractionResponse {
+				kind: InteractionResponseType::ChannelMessageWithSource,
+				data: Some(data),
+			};
+			state
+				.client
+				.interaction(interaction.application_id)
+				.create_response(interaction.id, &interaction.token, &response)
+				.await?;
+			bail!("Must be provided a user ID");
+		}
+	};
+	let discord_id = user.id.to_string();
+	Ok(discord_id)
+}
+
 impl FaucetCommand {
 	pub async fn handle(
 		state: GlobalStateRef<'_>,
@@ -189,54 +267,59 @@ impl FaucetCommand {
 		let command =
 			FaucetCommand::from_interaction(data.into()).wrap_err("Couldn't parse command data")?;
 
-		command.faucet(state, interaction).await
+		let res = {
+			let state = state.reborrow();
+			let interaction = interaction.clone();
+			match command {
+				FaucetCommand::Check(check) => check.handle(state, interaction).await,
+				FaucetCommand::Ratelimits(ratelimits) => {
+					ratelimits.handle(state, interaction).await
+				}
+				FaucetCommand::PolygonAmoy(chain) => {
+					SupportedChain::PolygonAmoy(chain)
+						.handle(state, interaction)
+						.await
+				}
+				FaucetCommand::SepoliaArbitrum(chain) => {
+					SupportedChain::SepoliaArbitrum(chain)
+						.handle(state, interaction)
+						.await
+				}
+				FaucetCommand::SepoliaEtherium(chain) => {
+					SupportedChain::SepoliaEtherium(chain)
+						.handle(state, interaction)
+						.await
+				}
+				FaucetCommand::SomniaShannon(chain) => {
+					SupportedChain::SomniaShannon(chain)
+						.handle(state, interaction)
+						.await
+				}
+			}
+		};
+		// global internal error handler
+		// this is a best effort attempt, you must manually handle all user facing errors in .handle
+		if let Err(err) = res {
+			state
+				.client
+				.interaction(interaction.application_id)
+				.create_followup(&interaction.token)
+				.content(&format!("An internal error occurred: {}", err))
+				.await
+				.wrap_err("Couldn't send internal error message")
+				.note(format!("Original internal error: {}", err))?;
+		}
+		Ok(())
 	}
+}
 
-	pub async fn faucet(
-		self,
+impl SupportedChain {
+	pub async fn handle(
+		&self,
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
 	) -> color_eyre::Result<()> {
-		let member = match interaction.member {
-			Some(user) => user,
-			None => {
-				let data = InteractionResponseDataBuilder::new()
-					.content("Not called as a /slash command? `interaction.member` not received\nThis data is used to ratelimit discord users")
-					.build();
-				let response = InteractionResponse {
-					kind: InteractionResponseType::ChannelMessageWithSource,
-					data: Some(data),
-				};
-				state
-					.client
-					.interaction(interaction.application_id)
-					.create_response(interaction.id, &interaction.token, &response)
-					.await?;
-				bail!("Must be provided a member");
-			}
-		};
-		let user = match member.user {
-			Some(user) => user,
-			None => {
-				let data = InteractionResponseDataBuilder::new()
-					.content(
-						"`interaction.member.user` was not received\nThis data is used to ratelimit discord users",
-					)
-					.build();
-				let response = InteractionResponse {
-					kind: InteractionResponseType::ChannelMessageWithSource,
-					data: Some(data),
-				};
-				state
-					.client
-					.interaction(interaction.application_id)
-					.create_response(interaction.id, &interaction.token, &response)
-					.await?;
-				bail!("Must be provided a user ID");
-			}
-		};
-		let discord_id = user.id.to_string();
-
+		let discord_id = discord_user_id(state, interaction).await?;
 		let chains::BlockchainInfo {
 			chain_id,
 			rpc_url,
@@ -273,6 +356,16 @@ impl FaucetCommand {
 			return Ok(());
 		}
 
+		// do business logic checks
+		match self {
+			SupportedChain::SepoliaArbitrum(chain) => {
+				if (!state.private_apis.test_1(&chain.address).await?) {
+
+				}
+			}
+			_ => todo!(),
+		}
+
 		// defer response
 		let response = InteractionResponse {
 			kind: InteractionResponseType::DeferredChannelMessageWithSource,
@@ -293,20 +386,22 @@ impl FaucetCommand {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let res = salt.transaction(
-			&amount.to_string(),
-			&state.env.salt_account_address,
-			&address,
-		).await;
+		let res = salt
+			.transaction(
+				&amount.to_string(),
+				&state.env.salt_account_address,
+				&address,
+			)
+			.await;
 
 		if let Err(err) = res {
 			error!(?err, "Failed to do salt transaction");
 			let mut err_string = err.to_string();
-			
+
 			if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
 				err_string = output.stderr;
 			}
-			
+
 			if err_string.len() > 1900 {
 				// only keeps first 1900 bytes, avoiding a panic if using String.split_off
 				// https://doc.rust-lang.org/stable/std/string/struct.String.html#method.split_off
@@ -347,5 +442,35 @@ impl FaucetCommand {
 		}
 
 		Ok(())
+	}
+}
+
+impl Check {
+	pub async fn handle(
+		&self,
+		state: GlobalStateRef<'_>,
+		interaction: Interaction,
+	) -> color_eyre::Result<()> {
+		todo!()
+	}
+
+	/// Used on arb eth
+	pub async fn test_1(address: String, state: GlobalStateRef<'_>) -> Result<(), CheckError> {
+		todo!()
+	}
+}
+
+#[derive(thiserror::Error, Debug)]
+pub struct CheckError {
+	address: String
+}
+
+impl CheckRatelimits {
+	pub async fn handle(
+		&self,
+		state: GlobalStateRef<'_>,
+		interaction: Interaction,
+	) -> color_eyre::Result<()> {
+		todo!()
 	}
 }
