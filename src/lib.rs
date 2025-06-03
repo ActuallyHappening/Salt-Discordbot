@@ -136,6 +136,7 @@ mod common {
 		private_apis: salt_private_apis::Client,
 	}
 
+	#[derive(Clone, Copy)]
 	pub struct GlobalStateRef<'a> {
 		pub client: &'a Client,
 		pub env: &'a Env,

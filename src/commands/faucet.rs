@@ -55,9 +55,9 @@ pub(super) struct CheckRatelimits {
 
 async fn discord_user_id(
 	state: GlobalStateRef<'_>,
-	interaction: Interaction,
+	interaction: &Interaction,
 ) -> color_eyre::Result<String> {
-	let member = match interaction.member {
+	let member = match &interaction.member {
 		Some(user) => user,
 		None => {
 			let data = InteractionResponseDataBuilder::new()
@@ -75,7 +75,7 @@ async fn discord_user_id(
 			bail!("Must be provided a member");
 		}
 	};
-	let user = match member.user {
+	let user = match &member.user {
 		Some(user) => user,
 		None => {
 			let data = InteractionResponseDataBuilder::new()
@@ -160,7 +160,7 @@ impl SupportedChain {
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
 	) -> color_eyre::Result<()> {
-		let discord_id = discord_user_id(state, interaction).await?;
+		let discord_id = discord_user_id(state, &interaction).await?;
 		let chains::BlockchainInfo {
 			chain_id,
 			rpc_url,
@@ -200,7 +200,9 @@ impl SupportedChain {
 		// do business logic checks
 		match self {
 			SupportedChain::SepoliaArbitrum(chain) => {
-				if (!state.private_apis.test_1(&chain.address).await?) {}
+				if let Err(err) = Check::test_1(state, &chain.address).await {
+
+				}
 			}
 			_ => todo!(),
 		}
@@ -293,9 +295,13 @@ impl Check {
 		todo!()
 	}
 
-	/// Used on arb eth
-	pub async fn test_1(address: String, state: GlobalStateRef<'_>) -> Result<(), CheckError> {
-		todo!()
+	/// Used on arb eth only
+	pub async fn test_1(state: GlobalStateRef<'_>, address: &str) -> Result<(), CheckError> {
+		if !state.private_apis.test_1(&address).await.map_err(CheckError::Inner)? {
+			Err(CheckError::Test1 { address: address.to_owned() })
+		} else {
+			Ok(())
+		}
 	}
 }
 
@@ -310,6 +316,9 @@ pub enum CheckError {
 		"You must be a co-signer on an account on Salt to use this faucet! Invite someone to huddle with you and create your free dMPC accounts at https://testnet.salt.space - then return here to faucet some funds into it"
 	)]
 	Test2 { address: String },
+
+	#[error("An internal error occurred looking up the Salt status of your wallet address: {0}")]
+	Inner(#[source] color_eyre::Report),
 }
 
 impl CheckRatelimits {
