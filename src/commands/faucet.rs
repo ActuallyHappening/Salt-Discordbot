@@ -201,10 +201,40 @@ impl SupportedChain {
 		match self {
 			SupportedChain::SepoliaArbitrum(chain) => {
 				if let Err(err) = Check::test_1(state, &chain.address).await {
-
+					// handle error
+					let response = InteractionResponse {
+						kind: InteractionResponseType::ChannelMessageWithSource,
+						data: Some(
+							InteractionResponseDataBuilder::new()
+								.content(err.to_string())
+								.build(),
+						),
+					};
+					state
+						.client
+						.interaction(interaction.application_id)
+						.create_response(interaction.id, &interaction.token, &response)
+						.await?;
 				}
 			}
-			_ => todo!(),
+			chain => {
+				if let Err(err) = Check::test_2(state, &chain.address()).await {
+					// handle error
+					let response = InteractionResponse {
+						kind: InteractionResponseType::ChannelMessageWithSource,
+						data: Some(
+							InteractionResponseDataBuilder::new()
+								.content(err.to_string())
+								.build(),
+						),
+					};
+					state
+						.client
+						.interaction(interaction.application_id)
+						.create_response(interaction.id, &interaction.token, &response)
+						.await?;
+				}
+			}
 		}
 
 		// defer response
@@ -297,8 +327,31 @@ impl Check {
 
 	/// Used on arb eth only
 	pub async fn test_1(state: GlobalStateRef<'_>, address: &str) -> Result<(), CheckError> {
-		if !state.private_apis.test_1(&address).await.map_err(CheckError::Inner)? {
-			Err(CheckError::Test1 { address: address.to_owned() })
+		if !state
+			.private_apis
+			.test_1(&address)
+			.await
+			.map_err(CheckError::Inner)?
+		{
+			Err(CheckError::Test1 {
+				address: address.to_owned(),
+			})
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Used on all other chains than arb eth
+	pub async fn test_2(state: GlobalStateRef<'_>, address: &str) -> Result<(), CheckError> {
+		if !state
+			.private_apis
+			.test_2(&address)
+			.await
+			.map_err(CheckError::Inner)?
+		{
+			Err(CheckError::Test2 {
+				address: address.to_owned(),
+			})
 		} else {
 			Ok(())
 		}
