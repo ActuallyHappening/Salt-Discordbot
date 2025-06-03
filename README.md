@@ -13,3 +13,13 @@ scp target/release/salt-discordbot salt:///home/ah/Desktop/rust-discordbot
 # Note: probably better to use pm2, pueue or something
 ssh salt /home/ah/Desktop/rust-discordbot
 ```
+
+## Private APIs
+A private crate exists as a git submodule in this repo.
+
+```nushell
+git submodule init
+
+# to update
+git submodule update --remote
+```
