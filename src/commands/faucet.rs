@@ -29,11 +29,11 @@ pub(super) enum FaucetCommand {
 	#[command(name = "polygon-amoy")]
 	PolygonAmoy(chains::PolygonAmoy),
 
-	#[command(name = "check")]
-	Check(Check),
+	// #[command(name = "check")]
+	// Check(Check),
 
-	#[command(name = "ratelimits")]
-	Ratelimits(CheckRatelimits),
+	// #[command(name = "ratelimits")]
+	// Ratelimits(CheckRatelimits),
 }
 
 /// Check which chains your wallet address is valid for,
@@ -45,13 +45,13 @@ pub(super) struct Check {
 	pub address: String,
 }
 
-/// Check all your ratelimits by chain
-#[derive(Debug, Clone, CommandModel, CreateCommand)]
-#[command(name = "ratelimits")]
-pub(super) struct CheckRatelimits {
-	/// Your personal wallet address
-	pub address: String,
-}
+// /// Check all your ratelimits by chain
+// #[derive(Debug, Clone, CommandModel, CreateCommand)]
+// #[command(name = "ratelimits")]
+// pub(super) struct CheckRatelimits {
+// 	/// Your personal wallet address
+// 	pub address: String,
+// }
 
 async fn discord_user_id(
 	state: GlobalStateRef<'_>,
@@ -112,10 +112,10 @@ impl FaucetCommand {
 			let state = state.reborrow();
 			let interaction = interaction.clone();
 			match command {
-				FaucetCommand::Check(check) => check.handle(state, interaction).await,
-				FaucetCommand::Ratelimits(ratelimits) => {
-					ratelimits.handle(state, interaction).await
-				}
+				// FaucetCommand::Check(check) => check.handle(state, interaction).await,
+				// FaucetCommand::Ratelimits(ratelimits) => {
+				// 	ratelimits.handle(state, interaction).await
+				// }
 				FaucetCommand::PolygonAmoy(chain) => {
 					SupportedChain::PolygonAmoy(chain)
 						.handle(state, interaction)
@@ -198,9 +198,10 @@ impl SupportedChain {
 		}
 
 		// do business logic checks
+		let check = Check { address: self.address() };
 		match self {
-			SupportedChain::SepoliaArbitrum(chain) => {
-				if let Err(err) = Check::test_1(state, &chain.address).await {
+			SupportedChain::SepoliaArbitrum(_) => {
+				if let Err(err) = check.test_1(state).await {
 					// handle error
 					let response = InteractionResponse {
 						kind: InteractionResponseType::ChannelMessageWithSource,
@@ -217,8 +218,8 @@ impl SupportedChain {
 						.await?;
 				}
 			}
-			chain => {
-				if let Err(err) = Check::test_2(state, &chain.address()).await {
+			_ => {
+				if let Err(err) = check.test_2(state).await {
 					// handle error
 					let response = InteractionResponse {
 						kind: InteractionResponseType::ChannelMessageWithSource,
@@ -317,24 +318,24 @@ impl SupportedChain {
 }
 
 impl Check {
-	pub async fn handle(
-		&self,
-		state: GlobalStateRef<'_>,
-		interaction: Interaction,
-	) -> color_eyre::Result<()> {
-		todo!()
-	}
+	// pub async fn handle(
+	// 	&self,
+	// 	state: GlobalStateRef<'_>,
+	// 	interaction: Interaction,
+	// ) -> color_eyre::Result<()> {
+	// 	todo!()
+	// }
 
 	/// Used on arb eth only
-	pub async fn test_1(state: GlobalStateRef<'_>, address: &str) -> Result<(), CheckError> {
+	pub async fn test_1(&self, state: GlobalStateRef<'_>) -> Result<(), CheckError> {
 		if !state
 			.private_apis
-			.test_1(&address)
+			.test_1(&self.address)
 			.await
 			.map_err(CheckError::Inner)?
 		{
 			Err(CheckError::Test1 {
-				address: address.to_owned(),
+				address: self.address.clone(),
 			})
 		} else {
 			Ok(())
@@ -342,15 +343,15 @@ impl Check {
 	}
 
 	/// Used on all other chains than arb eth
-	pub async fn test_2(state: GlobalStateRef<'_>, address: &str) -> Result<(), CheckError> {
+	pub async fn test_2(&self, state: GlobalStateRef<'_>) -> Result<(), CheckError> {
 		if !state
 			.private_apis
-			.test_2(&address)
+			.test_2(&self.address)
 			.await
 			.map_err(CheckError::Inner)?
 		{
 			Err(CheckError::Test2 {
-				address: address.to_owned(),
+				address: self.address.clone(),
 			})
 		} else {
 			Ok(())
@@ -372,14 +373,4 @@ pub enum CheckError {
 
 	#[error("An internal error occurred looking up the Salt status of your wallet address: {0}")]
 	Inner(#[source] color_eyre::Report),
-}
-
-impl CheckRatelimits {
-	pub async fn handle(
-		&self,
-		state: GlobalStateRef<'_>,
-		interaction: Interaction,
-	) -> color_eyre::Result<()> {
-		todo!()
-	}
 }
