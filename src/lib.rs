@@ -18,6 +18,8 @@ pub(crate) mod errors {
 	pub use color_eyre::eyre::{WrapErr as _, bail, eyre};
 }
 
+mod chains;
+
 pub use main::main;
 mod main {
 	use crate::{common::GlobalState, env, prelude::*, ratelimits::RateLimits};

@@ -1,4 +1,4 @@
-use crate::{commands::faucet::chains::SupportedChain, prelude::*, ratelimits::Key};
+use crate::{chains, chains::SupportedChain, prelude::*, ratelimits::Key};
 use chains::FaucetBlockchain as _;
 use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig};
@@ -51,165 +51,6 @@ pub(super) struct Check {
 pub(super) struct CheckRatelimits {
 	/// Your personal wallet address
 	pub address: String,
-}
-
-mod chains {
-	use twilight_interactions::command::{CommandModel, CreateCommand};
-	use url::Url;
-
-	use crate::{env::Env, prelude::*};
-
-	use super::FaucetCommand;
-
-	pub(super) trait FaucetBlockchain {
-		fn info(&self, env: &Env) -> BlockchainInfo;
-
-		fn amount(&self) -> String {
-			String::from("0.005")
-		}
-
-		fn address(&self) -> String;
-	}
-
-	pub(super) struct BlockchainInfo {
-		pub chain_id: u64,
-		pub rpc_url: Url,
-		pub token_name: &'static str,
-		pub chain_name: &'static str,
-	}
-
-	#[derive(Debug, Clone)]
-	pub(super) enum SupportedChain {
-		SomniaShannon(SomniaShannon),
-		SepoliaEtherium(SepoliaEtherium),
-		SepoliaArbitrum(SepoliaArbitrum),
-		PolygonAmoy(PolygonAmoy),
-	}
-
-	impl FaucetBlockchain for SupportedChain {
-		fn info(&self, env: &Env) -> BlockchainInfo {
-			match self {
-				SupportedChain::SomniaShannon(chain) => chain.info(env),
-				SupportedChain::PolygonAmoy(chain) => chain.info(env),
-				SupportedChain::SepoliaArbitrum(chain) => chain.info(env),
-				SupportedChain::SepoliaEtherium(chain) => chain.info(env),
-			}
-		}
-
-		fn address(&self) -> String {
-			match self {
-				SupportedChain::SomniaShannon(chain) => chain.address(),
-				SupportedChain::PolygonAmoy(chain) => chain.address(),
-				SupportedChain::SepoliaArbitrum(chain) => chain.address(),
-				SupportedChain::SepoliaEtherium(chain) => chain.address(),
-			}
-		}
-
-		fn amount(&self) -> String {
-			match self {
-				SupportedChain::SomniaShannon(chain) => chain.amount(),
-				SupportedChain::PolygonAmoy(chain) => chain.amount(),
-				SupportedChain::SepoliaArbitrum(chain) => chain.amount(),
-				SupportedChain::SepoliaEtherium(chain) => chain.amount(),
-			}
-		}
-	}
-
-	/// Faucet 0.01 on Somnia Shannon STT tokens
-	#[derive(Debug, Clone, CommandModel, CreateCommand)]
-	#[command(name = "somnia-shannon")]
-	pub struct SomniaShannon {
-		/// Your personal wallet address
-		pub address: String,
-	}
-
-	impl FaucetBlockchain for SomniaShannon {
-		fn info(&self, env: &Env) -> BlockchainInfo {
-			BlockchainInfo {
-				chain_id: 50312,
-				rpc_url: env.somnia_shannon_rpc_endpoint.clone(),
-				token_name: "STT",
-				chain_name: "Somnia Shannon",
-			}
-		}
-
-		fn amount(&self) -> String {
-			String::from("0.01")
-		}
-
-		fn address(&self) -> String {
-			self.address.clone()
-		}
-	}
-
-	/// Faucet 0.005ETH on Ethereum Sepolia
-	#[derive(Debug, Clone, CommandModel, CreateCommand)]
-	#[command(name = "sepolia-eth")]
-	pub struct SepoliaEtherium {
-		/// Your personal wallet address
-		pub address: String,
-	}
-
-	impl FaucetBlockchain for SepoliaEtherium {
-		fn info(&self, env: &Env) -> BlockchainInfo {
-			BlockchainInfo {
-				chain_id: 11155111,
-				rpc_url: env.sepolia_etherium_rpc_endpoint.clone(),
-				token_name: "ETH",
-				chain_name: "Sepolia Ethereum",
-			}
-		}
-
-		fn address(&self) -> String {
-			self.address.clone()
-		}
-	}
-
-	/// Faucet 0.005ETH on Arbitrum Sepolia (gas for salt orchestration)
-	#[derive(Debug, Clone, CommandModel, CreateCommand)]
-	#[command(name = "sepolia-arb-eth")]
-	pub struct SepoliaArbitrum {
-		/// Your personal wallet address
-		pub address: String,
-	}
-
-	impl FaucetBlockchain for SepoliaArbitrum {
-		fn info(&self, env: &Env) -> BlockchainInfo {
-			BlockchainInfo {
-				chain_id: 421614,
-				rpc_url: env.sepolia_arbitrum_rpc_endpoint.clone(),
-				token_name: "ETH",
-				chain_name: "Sepolia Arbitrum",
-			}
-		}
-
-		fn address(&self) -> String {
-			self.address.clone()
-		}
-	}
-
-	/// Faucet 0.005ETH on Polygon Amoy
-	#[derive(Debug, Clone, CommandModel, CreateCommand)]
-	#[command(name = "polygon-amoy")]
-	pub struct PolygonAmoy {
-		/// Your personal wallet address
-		pub address: String,
-	}
-
-	impl FaucetBlockchain for PolygonAmoy {
-		fn info(&self, env: &Env) -> BlockchainInfo {
-			BlockchainInfo {
-				chain_id: 80002,
-				rpc_url: env.polygon_amoy_rpc_endpoint.clone(),
-				token_name: "AMOY",
-				chain_name: "Polygon Amoy",
-			}
-		}
-
-		fn address(&self) -> String {
-			self.address.clone()
-		}
-	}
 }
 
 async fn discord_user_id(
@@ -326,7 +167,7 @@ impl SupportedChain {
 			token_name,
 			chain_name,
 		} = self.info(state.env);
-		let amount = self.amount();
+		let amount = self.faucet_amount();
 		let address = self.address();
 
 		// check ratelimiting
@@ -359,9 +200,7 @@ impl SupportedChain {
 		// do business logic checks
 		match self {
 			SupportedChain::SepoliaArbitrum(chain) => {
-				if (!state.private_apis.test_1(&chain.address).await?) {
-
-				}
+				if (!state.private_apis.test_1(&chain.address).await?) {}
 			}
 			_ => todo!(),
 		}
@@ -461,8 +300,16 @@ impl Check {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub struct CheckError {
-	address: String
+pub enum CheckError {
+	#[error(
+		"You must belong to a Salt organisation to use this faucet! It's very easy to set up at https://testnet.salt.space - then return here to faucet Arbitrum ETH to use as gas to create your dMPC accounts"
+	)]
+	Test1 { address: String },
+
+	#[error(
+		"You must be a co-signer on an account on Salt to use this faucet! Invite someone to huddle with you and create your free dMPC accounts at https://testnet.salt.space - then return here to faucet some funds into it"
+	)]
+	Test2 { address: String },
 }
 
 impl CheckRatelimits {
