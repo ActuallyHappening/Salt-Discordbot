@@ -216,6 +216,7 @@ impl SupportedChain {
 						.interaction(interaction.application_id)
 						.create_response(interaction.id, &interaction.token, &response)
 						.await?;
+					return Ok(())
 				}
 			}
 			_ => {
@@ -234,6 +235,7 @@ impl SupportedChain {
 						.interaction(interaction.application_id)
 						.create_response(interaction.id, &interaction.token, &response)
 						.await?;
+					return Ok(())
 				}
 			}
 		}
