@@ -125,7 +125,9 @@ mod common {
 
 	use twilight_http::Client;
 
-	use crate::{env::Env, prelude::*, ratelimits::RateLimits};
+	use crate::{
+		env::Env, per_user_spam_filter::PerUserSpamFilter, prelude::*, ratelimits::RateLimits,
+	};
 
 	/// Cheap to clone
 	#[derive(Clone)]
@@ -134,6 +136,7 @@ mod common {
 		env: Arc<Env>,
 		ratelimits: Arc<Mutex<RateLimits>>,
 		private_apis: salt_private_apis::Client,
+		per_user_spam_filters: Arc<PerUserSpamFilter>,
 	}
 
 	#[derive(Clone, Copy)]
@@ -141,14 +144,9 @@ mod common {
 		pub client: &'a Client,
 		pub env: &'a Env,
 		pub ratelimits: &'a Mutex<RateLimits>,
-		pub private_apis: &'a salt_private_apis::Client
+		pub private_apis: &'a salt_private_apis::Client,
+		pub per_user_spam_filters: &'a PerUserSpamFilter,
 	}
-
-	// impl<'a> GlobalStateRef<'a> {
-	// 	pub fn ratelimits(&mut self) -> &mut Ratelimits {
-	// 		self.ratelimits.deref_mut()
-	// 	}
-	// }
 
 	impl GlobalState {
 		pub fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits) -> Result<Self> {
@@ -157,6 +155,7 @@ mod common {
 				env: Arc::new(env),
 				ratelimits: Arc::new(Mutex::new(ratelimits)),
 				private_apis: salt_private_apis::Client::new(),
+				per_user_spam_filters: Arc::new(PerUserSpamFilter::default()),
 			})
 		}
 
@@ -166,6 +165,7 @@ mod common {
 				client: &self.client,
 				ratelimits: &self.ratelimits,
 				private_apis: &self.private_apis,
+				per_user_spam_filters: &self.per_user_spam_filters,
 			}
 		}
 	}
@@ -177,6 +177,7 @@ mod common {
 				client: self.client,
 				ratelimits: self.ratelimits,
 				private_apis: self.private_apis,
+				per_user_spam_filters: self.per_user_spam_filters,
 			}
 		}
 	}
@@ -184,3 +185,48 @@ mod common {
 
 mod env;
 mod ratelimits;
+mod per_user_spam_filter {
+	use std::{collections::HashSet, sync::Mutex};
+
+	use crate::prelude::*;
+
+	#[derive(Default)]
+	pub struct PerUserSpamFilter(Mutex<HashSet<u64>>);
+
+	impl PerUserSpamFilter {
+		pub fn engage(&self, discord_id: u64) -> Result<Guard<'_>, PerUserErr> {
+			let mut guard = self.0.lock().or_poisoned();
+			if guard.contains(&discord_id) {
+				Err(PerUserErr)
+			} else {
+				guard.insert(discord_id);
+				Ok(Guard {
+					mutex: self,
+					discord_id,
+				})
+			}
+		}
+	}
+
+	#[derive(Debug, thiserror::Error)]
+	#[error("Slow down there! One slash command per user at a time please")]
+	pub struct PerUserErr;
+
+	pub struct Guard<'mutex> {
+		mutex: &'mutex PerUserSpamFilter,
+		discord_id: u64,
+	}
+
+	impl<'mutex> Drop for Guard<'mutex> {
+		fn drop(&mut self) {
+			match self.mutex.0.lock() {
+				Ok(mut lock) => {
+					lock.remove(&self.discord_id);
+				}
+				Err(_) => {
+					error!(?self.discord_id, "Failed to unengage per user spam filter");
+				}
+			}
+		}
+	}
+}

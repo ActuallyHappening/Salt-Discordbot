@@ -28,7 +28,6 @@ pub(super) enum FaucetCommand {
 
 	#[command(name = "polygon-amoy")]
 	PolygonAmoy(chains::PolygonAmoy),
-
 	// #[command(name = "check")]
 	// Check(Check),
 
@@ -56,7 +55,7 @@ pub(super) struct Check {
 async fn discord_user_id(
 	state: GlobalStateRef<'_>,
 	interaction: &Interaction,
-) -> color_eyre::Result<String> {
+) -> color_eyre::Result<u64> {
 	let member = match &interaction.member {
 		Some(user) => user,
 		None => {
@@ -95,7 +94,7 @@ async fn discord_user_id(
 			bail!("Must be provided a user ID");
 		}
 	};
-	let discord_id = user.id.to_string();
+	let discord_id = user.id.get();
 	Ok(discord_id)
 }
 
@@ -108,6 +107,30 @@ impl FaucetCommand {
 		let command =
 			FaucetCommand::from_interaction(data.into()).wrap_err("Couldn't parse command data")?;
 
+		let discord_id = discord_user_id(state, &interaction).await?;
+		let res = state.per_user_spam_filters.engage(discord_id);
+		let _guard;
+		match res {
+			Err(err) => {
+				let data = InteractionResponseDataBuilder::new()
+					.content(err.to_string())
+					.build();
+				let response = InteractionResponse {
+					kind: InteractionResponseType::ChannelMessageWithSource,
+					data: Some(data),
+				};
+				state
+					.client
+					.interaction(interaction.application_id)
+					.create_response(interaction.id, &interaction.token, &response)
+					.await?;
+				return Ok(());
+			}
+			Ok(guard) => {
+				_guard = guard;
+			}
+		};
+
 		let res = {
 			let state = state.reborrow();
 			let interaction = interaction.clone();
@@ -118,22 +141,22 @@ impl FaucetCommand {
 				// }
 				FaucetCommand::PolygonAmoy(chain) => {
 					SupportedChain::PolygonAmoy(chain)
-						.handle(state, interaction)
+						.handle(state, interaction, discord_id)
 						.await
 				}
 				FaucetCommand::SepoliaArbitrum(chain) => {
 					SupportedChain::SepoliaArbitrum(chain)
-						.handle(state, interaction)
+						.handle(state, interaction, discord_id)
 						.await
 				}
 				FaucetCommand::SepoliaEtherium(chain) => {
 					SupportedChain::SepoliaEtherium(chain)
-						.handle(state, interaction)
+						.handle(state, interaction, discord_id)
 						.await
 				}
 				FaucetCommand::SomniaShannon(chain) => {
 					SupportedChain::SomniaShannon(chain)
-						.handle(state, interaction)
+						.handle(state, interaction, discord_id)
 						.await
 				}
 			}
@@ -141,6 +164,7 @@ impl FaucetCommand {
 		// global internal error handler
 		// this is a best effort attempt, you must manually handle all user facing errors in .handle
 		if let Err(err) = res {
+			error!(%err, ?err, "An internal error occurred");
 			state
 				.client
 				.interaction(interaction.application_id)
@@ -159,8 +183,8 @@ impl SupportedChain {
 		&self,
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
+		discord_id: u64,
 	) -> color_eyre::Result<()> {
-		let discord_id = discord_user_id(state, &interaction).await?;
 		let chains::BlockchainInfo {
 			chain_id,
 			rpc_url,
@@ -173,7 +197,7 @@ impl SupportedChain {
 		// check ratelimiting
 		let ratelimit_key = Key {
 			address: address.clone().into_boxed_str(),
-			discord_id: discord_id.into_boxed_str(),
+			discord_id: discord_id.to_string().into_boxed_str(),
 			chain_id,
 			chain_name: chain_name.to_owned(),
 		};
