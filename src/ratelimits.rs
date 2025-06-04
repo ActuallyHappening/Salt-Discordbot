@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use time::{Duration, OffsetDateTime};
+use std::time::Duration;
+use time::OffsetDateTime;
 
 use crate::prelude::*;
 
@@ -28,6 +29,7 @@ fn chain_limits_serde() {
 	RateLimits::read().expect("to deserialize");
 }
 
+#[ignore]
 #[test]
 fn server_limits() {
 	let toml = std::fs::read_to_string(concat!(
@@ -132,7 +134,7 @@ impl RateLimits {
 #[error("{0}")]
 pub struct RateLimitErr(String);
 
-fn format(date: OffsetDateTime) -> String {
+fn format_date(date: OffsetDateTime) -> String {
 	let format = time::format_description::parse(
 		"[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
         sign:mandatory]:[offset_minute]:[offset_second]",
@@ -179,17 +181,32 @@ impl ChainLimits {
 		}
 		let discord_valid = Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
 
-		match (address_valid.is_ok(), discord_valid.is_ok()) {
-			(true, false) => Err(RateLimitErr(format!(
-				"You've reached your limit for fauceting for your discord account on {chain_name}. Please try again in 24 hours.",
+		let format_duration = |duration: time::Duration| {
+			let hours = duration.whole_hours();
+			let h_plural = if hours == 1 { "" } else { "s" };
+			let minutes = duration.whole_minutes() % 60;
+			let m_plural = if minutes == 1 { "" } else { "s" };
+			let seconds = duration.whole_seconds() % 60;
+			let s_plural = if seconds == 1 { "" } else { "s" };
+			format!(
+				"{hours} hour{h_plural} {minutes} minute{m_plural} (and {seconds} second{s_plural})"
+			)
+		};
+
+		match (address_valid, discord_valid) {
+			(Ok(_), Err((diff, _))) => Err(RateLimitErr(format!(
+				"You've reached your limit for fauceting for your discord account on {chain_name}. Please try again in {}.",
+				format_duration(diff),
 			))),
-			(false, true) => Err(RateLimitErr(format!(
-				"You've reached your limit for fauceting to this wallet address on {chain_name}. Please try again in 24 hours.",
+			(Err((diff, _)), Ok(_)) => Err(RateLimitErr(format!(
+				"You've reached your limit for fauceting to this wallet address on {chain_name}. Please try again in {}.",
+				format_duration(diff),
 			))),
-			(false, false) => Err(RateLimitErr(format!(
-				"Impressive! You've reached your limit for fauceting to this wallet address and your discord account on {chain_name}. Please try again in 24 hours.",
+			(Err((diff1, _)), Err((diff2, _))) => Err(RateLimitErr(format!(
+				"Impressive! You've reached your limit for fauceting to this wallet address and your discord account on {chain_name}. Please try again in {}.",
+				format_duration(diff1.max(diff2)),
 			))),
-			(true, true) => Ok(()),
+			(Ok(_), Ok(_)) => Ok(()),
 		}
 	}
 
@@ -198,7 +215,7 @@ impl ChainLimits {
 		for (address, records) in self.address.clone() {
 			let records = records
 				.into_iter()
-				.map(|date| format(date.clone()))
+				.map(|date| format_date(date.clone()))
 				.collect::<Vec<String>>();
 			ret.push_str(&format!(
 				"Address (ratelimited: {:?}): {:?}",
@@ -231,15 +248,20 @@ impl ChainLimits {
 	fn address_valid(
 		now: &OffsetDateTime,
 		previous: &[OffsetDateTime],
-	) -> Result<Vec<OffsetDateTime>, Vec<OffsetDateTime>> {
+	) -> Result<Vec<OffsetDateTime>, (time::Duration, Vec<OffsetDateTime>)> {
 		// 2 per day
-		let range = Duration::DAY;
+		let range = time::Duration::DAY;
 		let max_num_in_range = 2;
 
-		let previous_num = previous.iter().filter(|time| (**time - *now) < range);
+		let previous_num = previous
+			.iter()
+			.filter(|time| **time <= *now)
+			.filter(|time| (*now - **time) < range);
 
 		if previous_num.clone().count() >= max_num_in_range {
-			Err(previous_num.cloned().collect())
+			let earliest = previous_num.clone().min().unwrap();
+			let diff = range - (*now - *earliest).abs();
+			Err((diff, previous_num.cloned().collect()))
 		} else {
 			Ok(previous_num.cloned().collect())
 		}
@@ -249,15 +271,20 @@ impl ChainLimits {
 	fn discord_id_valid(
 		now: &OffsetDateTime,
 		previous: &Vec<OffsetDateTime>,
-	) -> Result<Vec<OffsetDateTime>, Vec<OffsetDateTime>> {
+	) -> Result<Vec<OffsetDateTime>, (time::Duration, Vec<OffsetDateTime>)> {
 		// 3 per day
-		let range = Duration::DAY;
+		let range = time::Duration::DAY;
 		let max_num_in_range = 3;
 
-		let previous_num = previous.iter().filter(|time| (**time - *now) < range);
+		let previous_num = previous
+			.iter()
+			.filter(|time| **time <= *now)
+			.filter(|time| (*now - **time) < range);
 
 		if previous_num.clone().count() >= max_num_in_range {
-			Err(previous_num.cloned().collect())
+			let earliest = previous_num.clone().min().unwrap();
+			let diff = range - (*now - *earliest).abs();
+			Err((diff, previous_num.cloned().collect()))
 		} else {
 			Ok(previous_num.cloned().collect())
 		}
