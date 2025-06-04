@@ -198,47 +198,47 @@ impl SupportedChain {
 		}
 
 		// do business logic checks
-		let check = Check { address: self.address() };
-		match self {
-			SupportedChain::SepoliaArbitrum(_) => {
-				if let Err(err) = check.test_1(state).await {
-					// handle error
-					let response = InteractionResponse {
-						kind: InteractionResponseType::ChannelMessageWithSource,
-						data: Some(
-							InteractionResponseDataBuilder::new()
-								.content(err.to_string())
-								.build(),
-						),
-					};
-					state
-						.client
-						.interaction(interaction.application_id)
-						.create_response(interaction.id, &interaction.token, &response)
-						.await?;
-					return Ok(())
-				}
-			}
-			_ => {
-				if let Err(err) = check.test_2(state).await {
-					// handle error
-					let response = InteractionResponse {
-						kind: InteractionResponseType::ChannelMessageWithSource,
-						data: Some(
-							InteractionResponseDataBuilder::new()
-								.content(err.to_string())
-								.build(),
-						),
-					};
-					state
-						.client
-						.interaction(interaction.application_id)
-						.create_response(interaction.id, &interaction.token, &response)
-						.await?;
-					return Ok(())
-				}
-			}
-		}
+		// let check = Check { address: self.address() };
+		// match self {
+		// 	SupportedChain::SepoliaArbitrum(_) => {
+		// 		if let Err(err) = check.test_1(state).await {
+		// 			// handle error
+		// 			let response = InteractionResponse {
+		// 				kind: InteractionResponseType::ChannelMessageWithSource,
+		// 				data: Some(
+		// 					InteractionResponseDataBuilder::new()
+		// 						.content(err.to_string())
+		// 						.build(),
+		// 				),
+		// 			};
+		// 			state
+		// 				.client
+		// 				.interaction(interaction.application_id)
+		// 				.create_response(interaction.id, &interaction.token, &response)
+		// 				.await?;
+		// 			return Ok(())
+		// 		}
+		// 	}
+		// 	_ => {
+		// 		if let Err(err) = check.test_2(state).await {
+		// 			// handle error
+		// 			let response = InteractionResponse {
+		// 				kind: InteractionResponseType::ChannelMessageWithSource,
+		// 				data: Some(
+		// 					InteractionResponseDataBuilder::new()
+		// 						.content(err.to_string())
+		// 						.build(),
+		// 				),
+		// 			};
+		// 			state
+		// 				.client
+		// 				.interaction(interaction.application_id)
+		// 				.create_response(interaction.id, &interaction.token, &response)
+		// 				.await?;
+		// 			return Ok(())
+		// 		}
+		// 	}
+		// }
 
 		// defer response
 		let response = InteractionResponse {
