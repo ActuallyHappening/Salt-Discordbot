@@ -6,6 +6,7 @@ use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
 	application::interaction::{Interaction, application_command::CommandData},
 	http::interaction::{InteractionResponse, InteractionResponseType},
+	id::Id,
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -52,10 +53,15 @@ pub(super) struct Check {
 // 	pub address: String,
 // }
 
-async fn discord_user_id(
+pub struct DiscordInfo {
+	discord_id: u64,
+	has_expanded_limits: bool,
+}
+
+async fn discord_info(
 	state: GlobalStateRef<'_>,
 	interaction: &Interaction,
-) -> color_eyre::Result<u64> {
+) -> color_eyre::Result<DiscordInfo> {
 	let member = match &interaction.member {
 		Some(user) => user,
 		None => {
@@ -94,8 +100,13 @@ async fn discord_user_id(
 			bail!("Must be provided a user ID");
 		}
 	};
+	let expanded_limits_id = Id::new(1364832034677198949);
+	let has_expanded_limits = member.roles.contains(&expanded_limits_id);
 	let discord_id = user.id.get();
-	Ok(discord_id)
+	Ok(DiscordInfo {
+		discord_id,
+		has_expanded_limits,
+	})
 }
 
 impl FaucetCommand {
@@ -107,8 +118,8 @@ impl FaucetCommand {
 		let command =
 			FaucetCommand::from_interaction(data.into()).wrap_err("Couldn't parse command data")?;
 
-		let discord_id = discord_user_id(state, &interaction).await?;
-		let res = state.per_user_spam_filters.engage(discord_id);
+		let discord_info = discord_info(state, &interaction).await?;
+		let res = state.per_user_spam_filters.engage(discord_info.discord_id);
 		let _guard;
 		match res {
 			Err(err) => {
@@ -141,22 +152,22 @@ impl FaucetCommand {
 				// }
 				FaucetCommand::PolygonAmoy(chain) => {
 					SupportedChain::PolygonAmoy(chain)
-						.handle(state, interaction, discord_id)
+						.handle(state, interaction, discord_info)
 						.await
 				}
 				FaucetCommand::SepoliaArbitrum(chain) => {
 					SupportedChain::SepoliaArbitrum(chain)
-						.handle(state, interaction, discord_id)
+						.handle(state, interaction, discord_info)
 						.await
 				}
 				FaucetCommand::SepoliaEtherium(chain) => {
 					SupportedChain::SepoliaEtherium(chain)
-						.handle(state, interaction, discord_id)
+						.handle(state, interaction, discord_info)
 						.await
 				}
 				FaucetCommand::SomniaShannon(chain) => {
 					SupportedChain::SomniaShannon(chain)
-						.handle(state, interaction, discord_id)
+						.handle(state, interaction, discord_info)
 						.await
 				}
 			}
@@ -183,7 +194,7 @@ impl SupportedChain {
 		&self,
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
-		discord_id: u64,
+		discord_info: DiscordInfo,
 	) -> color_eyre::Result<()> {
 		let chains::BlockchainInfo {
 			chain_id,
@@ -193,32 +204,40 @@ impl SupportedChain {
 		} = self.info(state.env);
 		let amount = self.faucet_amount();
 		let address = self.address();
+		let DiscordInfo {
+			discord_id,
+			has_expanded_limits,
+		} = discord_info;
 
-		// check ratelimiting
+		// check ratelimiting if not expanded limits
 		let ratelimit_key = Key {
 			address: address.clone().into_boxed_str(),
 			discord_id: discord_id.to_string().into_boxed_str(),
 			chain_id,
 			chain_name: chain_name.to_owned(),
 		};
-		let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
-		if let Err(msg) = ratelimit {
-			let data = InteractionResponseDataBuilder::new()
-				.content(format!(
-					"Couldn't faucet you any tokens because you are ratelimited!\n{}",
-					msg
-				))
-				.build();
-			let response = InteractionResponse {
-				kind: InteractionResponseType::ChannelMessageWithSource,
-				data: Some(data),
-			};
-			state
-				.client
-				.interaction(interaction.application_id)
-				.create_response(interaction.id, &interaction.token, &response)
-				.await?;
-			return Ok(());
+		if !has_expanded_limits {
+			let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
+			if let Err(msg) = ratelimit {
+				let data = InteractionResponseDataBuilder::new()
+					.content(format!(
+						"Couldn't faucet you any tokens because you are ratelimited!\n{}",
+						msg
+					))
+					.build();
+				let response = InteractionResponse {
+					kind: InteractionResponseType::ChannelMessageWithSource,
+					data: Some(data),
+				};
+				state
+					.client
+					.interaction(interaction.application_id)
+					.create_response(interaction.id, &interaction.token, &response)
+					.await?;
+				return Ok(());
+			}
+		} else {
+			info!("This person has expanded limits");
 		}
 
 		// do business logic checks
@@ -322,6 +341,7 @@ impl SupportedChain {
 				.await
 				.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
 		} else {
+			// still registers even if expanded limits
 			state
 				.ratelimits
 				.lock()
