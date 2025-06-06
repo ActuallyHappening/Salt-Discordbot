@@ -29,25 +29,6 @@ fn chain_limits_serde() {
 	RateLimits::read().expect("to deserialize");
 }
 
-#[ignore]
-#[test]
-fn server_limits() {
-	let toml = std::fs::read_to_string(concat!(
-		env!("CARGO_MANIFEST_DIR"),
-		"/server-ratelimits.toml"
-	))
-	.unwrap();
-	let mut ratelimits: RateLimits = toml::from_str(&toml).expect("to deserialize");
-	ratelimits
-		.check(&Key {
-			address: todo!(),
-			discord_id: todo!(),
-			chain_id: todo!(),
-			chain_name: todo!(),
-		})
-		.expect("To not be ratelimited");
-}
-
 pub struct Key {
 	pub address: Box<str>,
 	pub discord_id: Box<str>,

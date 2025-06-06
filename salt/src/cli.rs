@@ -54,7 +54,7 @@ impl Command {
 	}
 
 	fn pre_logging(&self) {
-		trace!("Running command {}", self.debug());
+		debug!("Running command {}", self.debug());
 	}
 
 	pub fn run_and_wait(mut self) -> Result<()> {

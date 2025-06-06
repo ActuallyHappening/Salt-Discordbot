@@ -331,7 +331,7 @@ impl SupportedChain {
 		};
 
 		if let Err(err) = res {
-			error!(?err, "Failed to do salt transaction");
+			error!("Failed to do salt transaction:\n{}", err);
 			let mut err_string = err.to_string();
 
 			if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
