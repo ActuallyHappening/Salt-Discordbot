@@ -8,17 +8,16 @@ pub mod prelude {
 	pub(crate) use camino::{Utf8Path, Utf8PathBuf};
 }
 
-use std::{
-	convert::Infallible,
-	net::{SocketAddrV4, TcpListener},
-	process::ExitStatus,
-};
+use std::{net::SocketAddrV4, process::ExitStatus};
 
 use camino::FromPathBufError;
 use cli::{AsyncCommand, Output};
-use color_eyre::{Section, eyre::Context as _};
+use color_eyre::{
+	Section,
+	eyre::{Context as _, eyre},
+};
 use git::Git;
-use tokio::{io::AsyncReadExt as _, task::JoinHandle};
+use tokio::io::AsyncReadExt as _;
 use url::Url;
 use which::which;
 
@@ -144,12 +143,16 @@ impl Salt {
 	}
 
 	/// git pull && deno install && nu fix.nu
-	#[tracing::instrument(name = "salt_sdk::init", skip_all)]
+	#[tracing::instrument(name = "init", skip_all)]
 	fn init(&self) -> Result<()> {
 		let git = self.git()?;
 		git.ensure_latest_branch(
 			Url::parse("https://github.com/ActuallyHappening/salt-asset-manager").unwrap(),
-			"dev",
+			if cfg!(debug_assertions) {
+				"dev"
+			} else {
+				"master"
+			},
 		)?;
 
 		let deno = Salt::deno()?;
@@ -206,11 +209,11 @@ pub struct TransactionInfo<'a> {
 	pub vault_address: &'a str,
 	pub recipient_address: &'a str,
 	pub data: &'a str,
-	pub logging: Box<dyn Fn(String) -> ()>,
+	pub logging: tokio::sync::mpsc::Sender<String>,
 }
 
 impl Salt {
-	#[tracing::instrument(name = "salt_sdk::transaction", skip_all)]
+	#[tracing::instrument(name = "transaction", skip_all)]
 	pub async fn transaction(&self, info: TransactionInfo<'_>) -> Result<Output> {
 		debug!("Beginning transaction ...");
 
@@ -219,7 +222,7 @@ impl Salt {
 			vault_address,
 			recipient_address,
 			data,
-			logging: logging_callback,
+			logging: logging_channel,
 		} = info;
 
 		let addr: SocketAddrV4 = "127.0.0.1:0000".parse().unwrap();
@@ -238,60 +241,92 @@ impl Salt {
 		debug!(%addr, "Using this port for IPC logging");
 
 		/// Never returns
-		#[tracing::instrument(name = "salt_sdk::transaction::logging", skip_all)]
-		async fn logging(listener: tokio::net::TcpListener) -> Result<Output, color_eyre::Report> {
-			debug!("Starting logging task");
+		#[tracing::instrument(name = "logging", skip_all)]
+		async fn logging(
+			listener: tokio::net::TcpListener,
+			channel: tokio::sync::mpsc::Sender<String>,
+		) -> Result<Output, color_eyre::Report> {
 			loop {
 				trace!("Waiting for new connection");
 				let (mut socket, _) = listener
 					.accept()
 					.await
 					.wrap_err("Failed to accept connection")?;
-				debug!("Accepted a connection");
+				trace!("Accepted a connection");
 
-				let mut buf = vec![];
+				let mut bytes: Vec<u8> = vec![];
+				let send = async |message: &str| -> color_eyre::Result<_> {
+					channel
+						.send(message.to_owned())
+						.await
+						.wrap_err("Couldn't send new message")
+						.note(format!("Message: {}", message))
+				};
 
 				loop {
-					let _len = socket
-						.read_buf(&mut buf)
+					let bytes_read = socket
+						.read_buf(&mut bytes)
 						.await
 						.wrap_err("Couldn't read to buf")?;
 					trace!(
 						"Received {} bytes, now reads: {}",
-						_len,
-						String::from_utf8_lossy(&buf)
+						bytes_read,
+						String::from_utf8_lossy(&bytes)
 					);
-					if _len == 0 {
+
+					if bytes_read == 0 {
 						debug!("Disconnecting");
+						if bytes.len() > 0 {
+							let message = String::from_utf8_lossy(&bytes);
+							trace!(%message, "Sending message with the remaining bytes because of a disconnect");
+							send(&message).await?;
+						}
 						break;
 					}
+
+					// send any messages seperated by MARKER
+					let buf_clone = &bytes.clone();
+					let string = String::from_utf8_lossy(buf_clone);
+					let subslices: Vec<&str> = string.split(|char: char| char == MARKER).collect();
+					let (in_progress, to_send) =
+						subslices.split_last().ok_or(eyre!("Buf empty?"))?;
+					trace!("To send len: {}", to_send.len());
+					// send
+					for msg in to_send {
+						trace!(%msg, "Sending message");
+						send(msg).await?;
+					}
+					// replace bug
+					bytes.clear();
+					bytes.extend_from_slice(in_progress.as_bytes());
 				}
 			}
 		}
 
-		let cmd = async move {
-			loop {
-				trace!("CMD polled");
-				tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-			}
-		};
-		// let cmd = self
-		// 	.cmd([
-		// 		"-amount",
-		// 		amount,
-		// 		"-vault-address",
-		// 		vault_address,
-		// 		"-recipient-address",
-		// 		recipient_address,
-		// 		"-data",
-		// 		data,
-		// 		"-logging-port",
-		// 		&addr.port().to_string(),
-		// 	])?
-		// 	.run_and_wait_for_output();
+		// let cmd = async move {
+		// 	loop {
+		// 		trace!("CMD polled");
+		// 		tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+		// 	}
+		// };
+		let cmd = self
+			.cmd([
+				"-amount",
+				amount,
+				"-vault-address",
+				vault_address,
+				"-recipient-address",
+				recipient_address,
+				"-data",
+				data,
+				"-logging-port",
+				&addr.port().to_string(),
+			])?
+			.run_and_wait_for_output();
 
 		let output: Result<Output, Error> = tokio::select! {
-			res = logging(listener) => {
+			biased;
+			res = logging(listener, logging_channel) => {
 				trace!("Logging task finished first");
 				res.wrap_err("Error running logging task").map_err(Error::TokioTcp)
 			}

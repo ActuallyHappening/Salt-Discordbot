@@ -1,7 +1,9 @@
+use std::sync::Mutex;
+
 use crate::{chains, chains::SupportedChain, prelude::*, ratelimits::Key};
 use chains::FaucetBlockchain as _;
 use color_eyre::Section;
-use salt_sdk::{Salt, SaltConfig};
+use salt_sdk::{Salt, SaltConfig, TransactionInfo};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
 	application::interaction::{Interaction, application_command::CommandData},
@@ -304,11 +306,13 @@ impl SupportedChain {
 		};
 		let salt = Salt::new(salt_config)?;
 		let res = salt
-			.transaction(
-				&amount.to_string(),
-				&state.env.salt_account_address,
-				&address,
-			)
+			.transaction(TransactionInfo {
+				amount: &amount,
+				vault_address: &state.env.faucet_testnet_salt_account_address,
+				recipient_address: &address,
+				data: "",
+				logging: tokio::sync::mpsc::Receiver<String>,
+			})
 			.await;
 
 		if let Err(err) = res {

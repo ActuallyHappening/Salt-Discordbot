@@ -2,7 +2,7 @@ mod tracing;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-	tracing::install_tracing("info,salt_discord=trace,salt_sdk=trace")?;
+	tracing::install_tracing("info,salt_discord=trace,salt_sdk=debug")?;
 
 	::tracing::info!("Started logging for the discord server");
 

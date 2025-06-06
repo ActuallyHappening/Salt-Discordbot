@@ -2,7 +2,7 @@ mod tracing;
 
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
-use color_eyre::eyre::Context as _;
+use color_eyre::eyre::{bail, Context as _};
 use salt_sdk::{Salt, TransactionInfo};
 
 #[tokio::main]
@@ -21,23 +21,38 @@ async fn main() -> color_eyre::Result<()> {
 
 	let mut rl = rustyline::DefaultEditor::new()?;
 
-	
-	let amount = format!("0.00001");
-	let vault_address = format!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
-	let recipient_address = format!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
-	// let amount = rl.readline("Amount to transfer: ")?;
-	// let vault_address = rl.readline("Vault address: ")?;
-	// let recipient_address = rl.readline("Recipient address: ")?;
+	// let amount = format!("0.00001");
+	// let vault_address = format!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
+	// let recipient_address = format!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
+	let amount = rl.readline("Amount to transfer: ")?;
+	let vault_address = rl.readline("Vault address: ")?;
+	let recipient_address = rl.readline("Recipient address: ")?;
 
-	let output = salt.transaction(TransactionInfo {
+	let (send, mut recv) = tokio::sync::mpsc::channel(5);
+	let transaction = salt.transaction(TransactionInfo {
 		amount: &amount,
 		vault_address: &vault_address,
 		recipient_address: &recipient_address,
 		data: "",
-		logging: Box::new(|log| info!(%log)),
-	})
-	.await
-	.wrap_err("Couldn't do salt transaction")?;
+		logging: send,
+	});
+	let log = async move {
+		loop {
+			if let Some(msg) = recv.recv().await {
+				info!(%msg);
+			}
+		}
+	};
+
+	let output = tokio::select! {
+		biased;
+		_ = log => {
+			bail!("Logging errored?");
+		},
+		output = transaction => {
+			output.wrap_err("Couldn't do salt transaction")
+		}
+	}?;
 
 	info!("Salt transaction completed:\n{}", output);
 
