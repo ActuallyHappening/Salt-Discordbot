@@ -298,6 +298,7 @@ impl SupportedChain {
 			.wrap_err("Unable to mark interaction as deferred")?;
 
 		// do transaction
+		let (send_logs, mut live_logs) = tokio::sync::mpsc::channel(10);
 		let salt_config = SaltConfig {
 			private_key: state.env.private_key.clone(),
 			orchestration_network_rpc_node: state.env.orchestration_network_rpc_node_url.clone(),
@@ -305,15 +306,29 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let res = salt
+		let transaction = salt
 			.transaction(TransactionInfo {
 				amount: &amount,
 				vault_address: &state.env.faucet_testnet_salt_account_address,
 				recipient_address: &address,
 				data: "",
-				logging: tokio::sync::mpsc::Receiver<String>,
-			})
-			.await;
+				logging: send_logs,
+			});
+		let logging = async move {
+			while let Some(log) = live_logs.recv().await {
+				info!(?log);
+			}
+		};
+
+		let res = tokio::select!{
+			biased;
+			_ = logging => {
+				bail!("The live logging connection has been disconnected");
+			}
+			res = transaction => {
+				res
+			}
+		};
 
 		if let Err(err) = res {
 			error!(?err, "Failed to do salt transaction");
