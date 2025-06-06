@@ -231,55 +231,64 @@ impl Salt {
 			.wrap_err("Couldn't bind tcp listener to port")
 			.note(format!("IPV4 Address: {}", addr))
 			.map_err(Error::TokioTcp)?;
-		let port = listener
+		let addr = listener
 			.local_addr()
 			.wrap_err("Couldn't get local addr")
 			.map_err(Error::TokioTcp)?;
-		debug!(%port, "Using this port for IPC logging");
+		debug!(%addr, "Using this port for IPC logging");
 
 		/// Never returns
 		#[tracing::instrument(name = "salt_sdk::transaction::logging", skip_all)]
-		async fn logging(
-			listener: tokio::net::TcpListener,
-		) -> Result<Output, color_eyre::Report> {
+		async fn logging(listener: tokio::net::TcpListener) -> Result<Output, color_eyre::Report> {
 			debug!("Starting logging task");
-			let (mut socket, _) = listener
-				.accept()
-				.await
-				.wrap_err("Failed to accept connection")?;
-			debug!("Accepted a connection");
-
-			let mut buf = vec![];
-
 			loop {
-				let _len = socket
-					.read_buf(&mut buf)
+				trace!("Waiting for new connection");
+				let (mut socket, _) = listener
+					.accept()
 					.await
-					.wrap_err("Couldn't read to buf")?;
-				trace!(
-					"Received {} bytes, now reads: {}",
-					_len,
-					String::from_utf8_lossy(&buf)
-				);
+					.wrap_err("Failed to accept connection")?;
+				debug!("Accepted a connection");
+
+				let mut buf = vec![];
+
+				loop {
+					let _len = socket
+						.read_buf(&mut buf)
+						.await
+						.wrap_err("Couldn't read to buf")?;
+					trace!(
+						"Received {} bytes, now reads: {}",
+						_len,
+						String::from_utf8_lossy(&buf)
+					);
+					if _len == 0 {
+						debug!("Disconnecting");
+						break;
+					}
+				}
 			}
 		}
 
-		// tokio::select! {};
-		//
-		let cmd = self
-			.cmd([
-				"-amount",
-				amount,
-				"-vault-address",
-				vault_address,
-				"-recipient-address",
-				recipient_address,
-				"-data",
-				data,
-				"-logging-port",
-				&port.port().to_string(),
-			])?
-			.run_and_wait_for_output();
+		let cmd = async move {
+			loop {
+				trace!("CMD polled");
+				tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+			}
+		};
+		// let cmd = self
+		// 	.cmd([
+		// 		"-amount",
+		// 		amount,
+		// 		"-vault-address",
+		// 		vault_address,
+		// 		"-recipient-address",
+		// 		recipient_address,
+		// 		"-data",
+		// 		data,
+		// 		"-logging-port",
+		// 		&addr.port().to_string(),
+		// 	])?
+		// 	.run_and_wait_for_output();
 
 		let output: Result<Output, Error> = tokio::select! {
 			res = logging(listener) => {
