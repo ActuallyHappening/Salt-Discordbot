@@ -8,11 +8,17 @@ pub mod prelude {
 	pub(crate) use camino::{Utf8Path, Utf8PathBuf};
 }
 
-use std::process::ExitStatus;
+use std::{
+	convert::Infallible,
+	net::{SocketAddrV4, TcpListener},
+	process::ExitStatus,
+};
 
 use camino::FromPathBufError;
 use cli::{AsyncCommand, Output};
+use color_eyre::{Section, eyre::Context as _};
 use git::Git;
+use tokio::{io::AsyncReadExt as _, task::JoinHandle};
 use url::Url;
 use which::which;
 
@@ -87,8 +93,11 @@ pub enum Error {
 	#[error("Executable file doesn't exist")]
 	ExecutableFileDoesntExist(Utf8PathBuf),
 
-	#[error("{0}")]
+	#[error("Failed to execute subprocess: {0}")]
 	FailedToExecute(std::io::Error),
+
+	#[error("Something went wrong collecting salt-asset-manager logs: {0}")]
+	TokioTcp(color_eyre::Report),
 
 	#[error("Subprocess exited badly: {0:?}")]
 	SubprocessExitedBadly(ExitStatus),
@@ -109,7 +118,7 @@ pub enum Error {
 	},
 }
 
-pub type Result<T> = core::result::Result<T, Error>;
+pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 impl Salt {
 	fn default_project_path() -> Result<Utf8PathBuf> {
@@ -130,38 +139,6 @@ impl Salt {
 
 		Ok(salt)
 	}
-
-	#[tracing::instrument(name = "salt_sdk::transaction", skip_all)]
-	pub async fn transaction(
-		&self,
-		amount: &str,
-		vault_address: &str,
-		recipient_address: &str,
-	) -> Result<Output> {
-		debug!("Beginning transaction ...");
-		let output = self
-			.cmd([
-				"-amount",
-				amount,
-				"-vault-address",
-				vault_address,
-				"-recipient-address",
-				recipient_address,
-			])?
-			.run_and_wait_for_output().await;
-
-		debug!(
-			"Finished transaction {}",
-			if output.is_ok() {
-				"successfully"
-			} else {
-				"unsuccessfully"
-			}
-		);
-
-		output
-	}
-
 	pub fn broadcasting_network_id(&self) -> u64 {
 		self.config.broadcasting_network_id.clone()
 	}
@@ -172,7 +149,7 @@ impl Salt {
 		let git = self.git()?;
 		git.ensure_latest_branch(
 			Url::parse("https://github.com/ActuallyHappening/salt-asset-manager").unwrap(),
-			"master",
+			"dev",
 		)?;
 
 		let deno = Salt::deno()?;
@@ -221,6 +198,110 @@ impl Salt {
 
 	fn git(&self) -> Result<Git> {
 		Ok(Git::new(self.project_folder.to_owned())?)
+	}
+}
+
+pub struct TransactionInfo<'a> {
+	pub amount: &'a str,
+	pub vault_address: &'a str,
+	pub recipient_address: &'a str,
+	pub data: &'a str,
+	pub logging: Box<dyn Fn(String) -> ()>,
+}
+
+impl Salt {
+	#[tracing::instrument(name = "salt_sdk::transaction", skip_all)]
+	pub async fn transaction(&self, info: TransactionInfo<'_>) -> Result<Output> {
+		debug!("Beginning transaction ...");
+
+		let TransactionInfo {
+			amount,
+			vault_address,
+			recipient_address,
+			data,
+			logging: logging_callback,
+		} = info;
+
+		let addr: SocketAddrV4 = "127.0.0.1:0000".parse().unwrap();
+		/// A marker for the end of a log
+		/// (its a log emojie)
+		const MARKER: char = '🪵';
+		let listener = tokio::net::TcpListener::bind(addr)
+			.await
+			.wrap_err("Couldn't bind tcp listener to port")
+			.note(format!("IPV4 Address: {}", addr))
+			.map_err(Error::TokioTcp)?;
+		let port = listener
+			.local_addr()
+			.wrap_err("Couldn't get local addr")
+			.map_err(Error::TokioTcp)?;
+		debug!(%port, "Using this port for IPC logging");
+
+		/// Never returns
+		#[tracing::instrument(name = "salt_sdk::transaction::logging", skip_all)]
+		async fn logging(
+			listener: tokio::net::TcpListener,
+		) -> Result<Output, color_eyre::Report> {
+			debug!("Starting logging task");
+			let (mut socket, _) = listener
+				.accept()
+				.await
+				.wrap_err("Failed to accept connection")?;
+			debug!("Accepted a connection");
+
+			let mut buf = vec![];
+
+			loop {
+				let _len = socket
+					.read_buf(&mut buf)
+					.await
+					.wrap_err("Couldn't read to buf")?;
+				trace!(
+					"Received {} bytes, now reads: {}",
+					_len,
+					String::from_utf8_lossy(&buf)
+				);
+			}
+		}
+
+		// tokio::select! {};
+		//
+		let cmd = self
+			.cmd([
+				"-amount",
+				amount,
+				"-vault-address",
+				vault_address,
+				"-recipient-address",
+				recipient_address,
+				"-data",
+				data,
+				"-logging-port",
+				&port.port().to_string(),
+			])?
+			.run_and_wait_for_output();
+
+		let output: Result<Output, Error> = tokio::select! {
+			res = logging(listener) => {
+				trace!("Logging task finished first");
+				res.wrap_err("Error running logging task").map_err(Error::TokioTcp)
+			}
+			res = cmd => {
+				trace!("Command task finished first");
+				res
+			}
+		};
+
+		debug!(
+			"Finished transaction {}",
+			if output.is_ok() {
+				"successfully"
+			} else {
+				"unsuccessfully"
+			}
+		);
+
+		output
 	}
 }
 
