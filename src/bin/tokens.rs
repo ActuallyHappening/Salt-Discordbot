@@ -1,9 +1,9 @@
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
 use alloy::{
-	primitives::{FixedBytes, Uint, address, utils::Unit},
+	primitives::{address, utils::{ParseUnits, Unit}, FixedBytes, Uint},
 	providers::ProviderBuilder,
-	signers::k256::sha2::digest::typenum::UInt,
+	signers::{k256::sha2::digest::typenum::UInt, Signer},
 	sol,
 };
 use color_eyre::eyre::Context as _;
@@ -63,22 +63,36 @@ async fn main() -> color_eyre::Result<()> {
 	// let swap = "0x6AAC14f090A35EeA150705f72D90E4CDC4a49b2C";
 
 	{
-		let from = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
+		let me = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
+		let private_key = include_str!("private_key").trim();
+
 		let to = address!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
 		let amount = ("0.5", Unit::ETHER);
 		let amount = alloy::primitives::utils::ParseUnits::parse_units(amount.0, amount.1)
 			.unwrap()
 			.get_absolute();
 
-		let signer: alloy::signers::local::PrivateKeySigner = env.private_key.parse()?;
+		let mut signer: alloy::signers::local::PrivateKeySigner = private_key.parse()?;
+		signer.set_chain_id(Some(50312));
 		debug!(?signer);
+		assert_eq!(me, signer.address());
+
 		let provider = alloy::providers::ProviderBuilder::new()
 			.wallet(signer)
 			.connect(somnia_rpc.as_str())
 			.await?;
 		let erc20_ping = ERC20::new(PING, provider.clone());
 
-		erc20_ping.transferFrom(from, to, amount).call().await?;
+		let balance = erc20_ping.balanceOf(me).call().await?;
+		let balance: ParseUnits = balance.into();
+		info!("Balance: {}", balance.format_units(Unit::ETHER));
+
+		let res: bool = erc20_ping.transfer(to, amount).call().await?;
+		if res {
+			info!("Transaction succeeded!");
+		} else {
+			warn!("Transaction failed!");
+		}
 	}
 
 	Ok(())
