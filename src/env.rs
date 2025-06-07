@@ -23,7 +23,7 @@ pub struct Env {
 /// Can refactor this if wanted
 #[allow(dead_code)]
 impl Env {
-	pub(crate) fn default() -> Result<Env> {
+	pub fn default() -> Result<Env> {
 		#[cfg(debug_assertions)]
 		return Self::from_local_env();
 		#[cfg(not(debug_assertions))]

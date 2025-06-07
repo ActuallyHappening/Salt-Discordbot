@@ -41,6 +41,7 @@ static-toml = "1.3.0"
 or_poisoned = "0.1.0"
 thiserror = "2.0.12"
 salt-private-apis = { version = "0.1.0", path = "private-apis" }
+alloy = "1.0.9"
 
 [build-dependencies]
 toml = "0.8.22"

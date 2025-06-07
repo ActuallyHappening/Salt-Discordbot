@@ -185,7 +185,7 @@ mod common {
 	}
 }
 
-mod env;
+pub mod env;
 mod ratelimits;
 mod per_user_spam_filter {
 	use std::{collections::HashSet, sync::Mutex};
