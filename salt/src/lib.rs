@@ -162,7 +162,7 @@ impl Salt {
 			.with_args(["install"])
 			.run_and_wait()?;
 
-		if self.project_folder.join("fix.nu").exists() {
+		if self.project_folder.join("patch.nu").exists() {
 			debug!("Detected fix.nu, running this after deno install");
 			// run fix.nu
 			let nu = which(
