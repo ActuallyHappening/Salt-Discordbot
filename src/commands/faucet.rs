@@ -318,31 +318,24 @@ impl SupportedChain {
 			let interaction = interaction2;
 			while let Some(log) = live_logs.recv().await {
 				info!(%log, "Sending live log");
-				if let Err(err) = state
+				state
 					.client
 					.interaction(interaction.application_id)
 					.create_followup(&interaction.token)
 					.content(&log)
 					.await
 					.wrap_err("Couldn't follow up with a live logging message")
-					.note("Couldn't follow up discord interaction")
-					.map_err(salt_sdk::Error::LiveLogging)
-				{
-					return err;
-				}
+					.note("Couldn't follow up discord interaction")?;
 			}
-			return salt_sdk::Error::LiveLogging(eyre!("Live logging disconnected"));
+			Result::<(), color_eyre::Report>::Ok(())
+			// return salt_sdk::Error::LiveLogging(eyre!("Live logging disconnected"));
 		};
 
-		let res = tokio::select! {
-			biased;
-			res = logging => {
-				Err(res)
-			}
-			res = transaction => {
-				res
-			}
-		};
+		let (res, logging_err) = tokio::join!(transaction, logging);
+
+		if let Err(err) = logging_err {
+			error!("Failed to send live logs:\n{}", err);
+		}
 
 		if let Err(err) = res {
 			error!("Failed to do salt transaction:\n{}", err);
