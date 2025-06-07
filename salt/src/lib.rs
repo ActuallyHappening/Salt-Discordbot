@@ -253,7 +253,7 @@ impl Salt {
 					.accept()
 					.await
 					.wrap_err("Failed to accept connection")?;
-				trace!("Accepted a connection");
+				debug!("Accepted a connection");
 
 				let mut bytes: Vec<u8> = vec![];
 				let send = async |message: &str| -> color_eyre::Result<_> {
