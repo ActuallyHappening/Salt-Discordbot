@@ -306,24 +306,38 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let transaction = salt
-			.transaction(TransactionInfo {
-				amount: &amount,
-				vault_address: &state.env.faucet_testnet_salt_account_address,
-				recipient_address: &address,
-				data: "",
-				logging: send_logs,
-			});
+		let transaction = salt.transaction(TransactionInfo {
+			amount: &amount,
+			vault_address: &state.env.faucet_testnet_salt_account_address,
+			recipient_address: &address,
+			data: "",
+			logging: send_logs,
+		});
+		let interaction2 = interaction.clone();
 		let logging = async move {
+			let interaction = interaction2;
 			while let Some(log) = live_logs.recv().await {
-				info!(?log);
+				info!(%log, "Sending live log");
+				if let Err(err) = state
+					.client
+					.interaction(interaction.application_id)
+					.create_followup(&interaction.token)
+					.content(&log)
+					.await
+					.wrap_err("Couldn't follow up with a live logging message")
+					.note("Couldn't follow up discord interaction")
+					.map_err(salt_sdk::Error::LiveLogging)
+				{
+					return err;
+				}
 			}
+			return salt_sdk::Error::LiveLogging(eyre!("Live logging disconnected"));
 		};
 
-		let res = tokio::select!{
+		let res = tokio::select! {
 			biased;
-			_ = logging => {
-				bail!("The live logging connection has been disconnected");
+			res = logging => {
+				Err(res)
 			}
 			res = transaction => {
 				res

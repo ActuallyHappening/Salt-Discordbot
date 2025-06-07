@@ -16,7 +16,6 @@ pub struct Env {
 
 	pub private_key: String,
 	pub orchestration_network_rpc_node_url: Url,
-	pub salt_account_address: String,
 }
 
 /// Only statically includes toml if building for release,
@@ -54,7 +53,6 @@ impl Env {
 			faucet_testnet_salt_account_address: ENV.faucet_testnet_salt_account_address.parse()?,
 			private_key: ENV.private_key.into(),
 			orchestration_network_rpc_node_url: ENV.orchestration_network_rpc_node_url.parse()?,
-			salt_account_address: ENV.salt_account_address.into(),
 		})
 	}
 }

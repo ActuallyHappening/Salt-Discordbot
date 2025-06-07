@@ -31,6 +31,8 @@ mod main {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
 		let ratelimits = RateLimits::read()?;
+		
+		info!("Starting discordbot for salt public addresss {}", env.faucet_testnet_salt_account_address);
 
 		// Initialize Twilight HTTP client and gateway configuration.
 		let client = Arc::new(Client::new(token.clone()));

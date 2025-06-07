@@ -96,7 +96,7 @@ pub enum Error {
 	FailedToExecute(std::io::Error),
 
 	#[error("Something went wrong collecting salt-asset-manager logs: {0}")]
-	TokioTcp(color_eyre::Report),
+	LiveLogging(color_eyre::Report),
 
 	#[error("Subprocess exited badly: {0:?}")]
 	SubprocessExitedBadly(ExitStatus),
@@ -152,6 +152,7 @@ impl Salt {
 				"dev"
 			} else {
 				"master"
+				// "8db97cbfc5367558cb960f8da783fc5c628db505" // FIXME
 			},
 		)?;
 
@@ -233,11 +234,11 @@ impl Salt {
 			.await
 			.wrap_err("Couldn't bind tcp listener to port")
 			.note(format!("IPV4 Address: {}", addr))
-			.map_err(Error::TokioTcp)?;
+			.map_err(Error::LiveLogging)?;
 		let addr = listener
 			.local_addr()
 			.wrap_err("Couldn't get local addr")
-			.map_err(Error::TokioTcp)?;
+			.map_err(Error::LiveLogging)?;
 		debug!(%addr, "Using this port for IPC logging");
 
 		/// Never returns
@@ -328,7 +329,7 @@ impl Salt {
 			biased;
 			res = logging(listener, logging_channel) => {
 				trace!("Logging task finished first");
-				res.wrap_err("Error running logging task").map_err(Error::TokioTcp)
+				res.wrap_err("Error running logging task").map_err(Error::LiveLogging)
 			}
 			res = cmd => {
 				trace!("Command task finished first");
