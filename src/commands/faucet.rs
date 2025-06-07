@@ -287,8 +287,14 @@ impl SupportedChain {
 
 		// defer response
 		let response = InteractionResponse {
-			kind: InteractionResponseType::DeferredChannelMessageWithSource,
-			data: None,
+			kind: InteractionResponseType::ChannelMessageWithSource,
+			data: Some(
+				InteractionResponseDataBuilder::new()
+					.content(&format!(
+						"Starting faucet of {amount}{token_name} ({chain_name}) to {address} ..."
+					))
+					.build(),
+			),
 		};
 		state
 			.client
