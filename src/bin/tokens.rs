@@ -1,12 +1,16 @@
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
 use alloy::{
-	primitives::{address, utils::{ParseUnits, Unit}, FixedBytes, Uint},
+	primitives::{
+		address, utils::{parse_ether, ParseUnits, Unit}, Address, FixedBytes, Uint, U256
+	},
 	providers::ProviderBuilder,
 	signers::{k256::sha2::digest::typenum::UInt, Signer},
 	sol,
 };
 use color_eyre::eyre::Context as _;
+use alloy::sol_types::SolCall;
+use hex::prelude::*;
 
 #[path = "../tracing.rs"]
 mod app_tracing;
@@ -26,8 +30,11 @@ async fn main() -> color_eyre::Result<()> {
 	// Generate the contract bindings for the ERC20 interface.
 	sol! {
 	   // The `rpc` attribute enables contract interaction via the provider.
-	   #[sol(rpc)]
+	   #[sol(rpc, abi)]
 	   contract ERC20 {
+			function name() public view returns (string);
+			function symbol() public view returns (string);
+			function decimals() public view returns (uint8);
 			function totalSupply() public view returns (uint256);
 			function balanceOf(address account) public view returns (uint256);
 			function transfer(address recipient, uint256 amount) public returns (bool);
@@ -40,60 +47,61 @@ async fn main() -> color_eyre::Result<()> {
 	   }
 	}
 
+	let to = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
+	let amount = parse_ether("0.5")?;
+
 	let env = salt_discordbot::env::Env::default()?;
-	let somnia_rpc = env.somnia_shannon_rpc_endpoint;
+	let provider = alloy::providers::ProviderBuilder::new().connect(env.somnia_shannon_rpc_endpoint.as_str()).await?;
+	let call = ERC20::transferCall { amount, recipient: to };
+	let data_str = call.abi_encode().to_lower_hex_string();
 
-	// #[allow(unused)]
-	// let mut rl = rustyline::DefaultEditor::new()?;
+	// let somnia_rpc = env.somnia_shannon_rpc_endpoint;
 
-	{
-		let provider = alloy::providers::ProviderBuilder::new()
-			.connect(somnia_rpc.as_str())
-			.await?;
-		let erc20_ping = ERC20::new(PING, provider.clone());
-		let erc20_pong = ERC20::new(PONG, provider);
+	// // #[allow(unused)]
+	// // let mut rl = rustyline::DefaultEditor::new()?;
 
-		let owner = "0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70".parse()?;
-		let balance_ping = erc20_ping.balanceOf(owner).call().await?;
-		let balance_pong = erc20_pong.balanceOf(owner).call().await?;
+	// {
+	// 	let private_key = include_str!("private_key").trim();
 
-		info!("You have {} PING, {} PONG", balance_ping, balance_pong);
-	}
+	// 	let to = address!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
+	// 	let amount = ("0.5", Unit::ETHER);
+	// 	let amount = alloy::primitives::utils::ParseUnits::parse_units(amount.0, amount.1)
+	// 		.unwrap()
+	// 		.get_absolute();
 
-	// let swap = "0x6AAC14f090A35EeA150705f72D90E4CDC4a49b2C";
+	// 	let mut signer: alloy::signers::local::PrivateKeySigner = private_key.parse()?;
+	// 	signer.set_chain_id(Some(50312));
+	// 	let me = signer.address();
 
-	{
-		let me = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
-		let private_key = include_str!("private_key").trim();
+	// 	let provider = alloy::providers::ProviderBuilder::new()
+	// 		.wallet(signer)
+	// 		.connect(somnia_rpc.as_str())
+	// 		.await?;
+	// 	let erc20_ping = ERC20::new(PING, provider.clone());
 
-		let to = address!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
-		let amount = ("0.5", Unit::ETHER);
-		let amount = alloy::primitives::utils::ParseUnits::parse_units(amount.0, amount.1)
-			.unwrap()
-			.get_absolute();
+	// 	let balance = erc20_ping.balanceOf(me).call().await?;
+	// 	let balance: ParseUnits = balance.into();
+	// 	info!("My balance: {}", balance.format_units(Unit::ETHER));
 
-		let mut signer: alloy::signers::local::PrivateKeySigner = private_key.parse()?;
-		signer.set_chain_id(Some(50312));
-		debug!(?signer);
-		assert_eq!(me, signer.address());
+	// 	let to_balance: ParseUnits = erc20_ping.balanceOf(to).call().await?.into();
+	// 	info!("To balance: {}", to_balance.format_units(Unit::ETHER));
 
-		let provider = alloy::providers::ProviderBuilder::new()
-			.wallet(signer)
-			.connect(somnia_rpc.as_str())
-			.await?;
-		let erc20_ping = ERC20::new(PING, provider.clone());
+	// 	let total_balance: ParseUnits = erc20_ping.totalSupply().call().await?.into();
+	// 	let symbol = erc20_ping.symbol().call().await?;
+	// 	let name = erc20_ping.name().call().await?;
+	// 	info!("total balance: {}, symbol: {}, name: {}", total_balance.format_units(Unit::ETHER), symbol, name);
 
-		let balance = erc20_ping.balanceOf(me).call().await?;
-		let balance: ParseUnits = balance.into();
-		info!("Balance: {}", balance.format_units(Unit::ETHER));
+	// 	let transfer_tx = erc20_ping.transfer(to, amount).send().await?;
+	// 	let recipt = transfer_tx.get_receipt().await?;
+	// 	info!("see on: https://shannon-explorer.somnia.network/tx/{}", recipt.transaction_hash);
 
-		let res: bool = erc20_ping.transfer(to, amount).call().await?;
-		if res {
-			info!("Transaction succeeded!");
-		} else {
-			warn!("Transaction failed!");
-		}
-	}
+	// 	let balance = erc20_ping.balanceOf(me).call().await?;
+	// 	let balance: ParseUnits = balance.into();
+	// 	info!("My balance: {}", balance.format_units(Unit::ETHER));
+
+	// 	let to_balance: ParseUnits = erc20_ping.balanceOf(to).call().await?.into();
+	// 	info!("To balance: {}", to_balance.format_units(Unit::ETHER));
+	// }
 
 	Ok(())
 }
