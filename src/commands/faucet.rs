@@ -305,7 +305,7 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let mut log_cb = async move |msg| {
+		let mut log_cb = move |msg| {
 			if let Err(err) = send_logs.blocking_send(msg) {
 				error!("Failed to send live log msg: {}", err);
 			}

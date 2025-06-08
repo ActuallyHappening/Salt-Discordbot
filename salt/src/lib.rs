@@ -207,7 +207,7 @@ impl Salt {
 
 pub struct TransactionInfo<'a, F>
 where
-	F: AsyncFnMut(String) + Send,
+	F: FnMut(String) + Send,
 {
 	pub amount: &'a str,
 	pub vault_address: &'a str,
@@ -224,13 +224,13 @@ mod tests {
 	fn api_is_send() {
 		fn is_send<T: Sync>(_t: T) {}
 		let salt: Salt = unimplemented!();
-		is_send(logging(unimplemented!(), &mut async |str| ()));
+		is_send(logging(unimplemented!(), &mut |str| ()));
 		is_send(salt.transaction(TransactionInfo {
 			amount: todo!(),
 			vault_address: todo!(),
 			recipient_address: todo!(),
 			data: todo!(),
-			logging: &mut async |str| (),
+			logging: &mut |str| (),
 		}));
 	}
 }
@@ -239,7 +239,7 @@ mod tests {
 #[tracing::instrument(name = "logging", skip_all)]
 async fn logging(
 	listener: tokio::net::TcpListener,
-	cb: &mut (impl AsyncFnMut(String) + Send + 'static),
+	mut cb: &mut (impl FnMut(String) + Send + 'static),
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
@@ -270,7 +270,7 @@ async fn logging(
 				if bytes.len() > 0 {
 					let message = String::from_utf8_lossy(&bytes);
 					trace!(%message, "Sending message with the remaining bytes because of a disconnect");
-					cb(message.into_owned()).await;
+					cb(message.into_owned());
 				}
 				break;
 			}
@@ -284,7 +284,7 @@ async fn logging(
 			// send
 			for msg in to_send {
 				trace!(%msg, "Sending message");
-				cb(msg.to_string()).await;
+				cb(msg.to_string());
 			}
 			// replace bug
 			bytes.clear();
@@ -297,7 +297,7 @@ impl Salt {
 	#[tracing::instrument(name = "transaction", skip_all)]
 	pub async fn transaction<F>(&self, info: TransactionInfo<'_, F>) -> Result<Output>
 	where
-		F: AsyncFnMut(String) + Send + 'static,
+		F: FnMut(String) + Send + 'static,
 	{
 		debug!("Beginning transaction ...");
 
@@ -341,6 +341,7 @@ impl Salt {
 				&addr.port().to_string(),
 			])?
 			.run_and_wait_for_output();
+		
 		let logging = logging(listener, cb);
 
 		let (output, log_res) = tokio::join!(cmd, logging);

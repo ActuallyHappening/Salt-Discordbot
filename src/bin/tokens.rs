@@ -93,7 +93,7 @@ async fn main() -> color_eyre::Result<()> {
 		vault_address: &env.faucet_testnet_salt_account_address.to_string(),
 		recipient_address: &PING.to_string(),
 		data: &data_str,
-		logging: &mut async |msg| info!(%msg, "Transaction live logs"),
+		logging: &mut |msg| info!(%msg, "Transaction live logs"),
 	})
 	.await
 	.wrap_err("Unable to send transaction")?;
