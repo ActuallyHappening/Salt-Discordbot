@@ -12,6 +12,7 @@ use alloy::{
 };
 use color_eyre::eyre::Context as _;
 use hex::prelude::*;
+use salt_discordbot::env::Env;
 use salt_sdk::TransactionInfo;
 
 #[path = "../tracing.rs"]
@@ -26,7 +27,7 @@ const PONG: alloy::primitives::Address =
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-	app_tracing::install_tracing("info,salt_sdk=trace,tokens=trace")?;
+	app_tracing::install_tracing("info,salt_sdk=debug,tokens=trace")?;
 	trace!("Started tokens.rs");
 
 	// Generate the contract bindings for the ERC20 interface.
@@ -53,25 +54,33 @@ async fn main() -> color_eyre::Result<()> {
 	let personal = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
 	let salt_wallet: Address = env.faucet_testnet_salt_account_address.parse()?;
 
-	// check balances for sanity
-	let provider = alloy::providers::ProviderBuilder::new()
-		.connect(env.somnia_shannon_rpc_endpoint.as_str())
-		.await?;
-	let personal_balance: ParseUnits = ERC20::new(PING, provider.clone())
-		.balanceOf(personal)
-		.call()
-		.await?
-		.into();
-	info!(
-		"Personal balance of PING: {}",
-		personal_balance.format_units(Unit::ETHER)
-	);
-	let salt_balance: ParseUnits = ERC20::new(PING, provider)
-		.balanceOf(salt_wallet)
-		.call()
-		.await?
-		.into();
-	info!("Salt balance of PING: {}", salt_balance.format_units(Unit::ETHER));
+	let sanity_check = async || {
+		// check balances for sanity
+		let provider = alloy::providers::ProviderBuilder::new()
+			.connect(env.somnia_shannon_rpc_endpoint.as_str())
+			.await?;
+		let personal_balance: ParseUnits = ERC20::new(PING, provider.clone())
+			.balanceOf(personal)
+			.call()
+			.await?
+			.into();
+		info!(
+			"Personal balance of PING: {}",
+			personal_balance.format_units(Unit::ETHER)
+		);
+		let salt_balance: ParseUnits = ERC20::new(PING, provider)
+			.balanceOf(salt_wallet)
+			.call()
+			.await?
+			.into();
+		info!(
+			"Salt balance of PING: {}",
+			salt_balance.format_units(Unit::ETHER)
+		);
+		color_eyre::Result::<(), color_eyre::Report>::Ok(())
+	};
+
+	sanity_check().await?;
 
 	// AWESOME!
 	// A salt token transfer
@@ -85,7 +94,7 @@ async fn main() -> color_eyre::Result<()> {
 	let salt = salt_sdk::Salt::new(salt_sdk::SaltConfig {
 		private_key: env.private_key,
 		orchestration_network_rpc_node: env.sepolia_arbitrum_rpc_endpoint,
-		broadcasting_network_rpc_node: env.somnia_shannon_rpc_endpoint,
+		broadcasting_network_rpc_node: env.somnia_shannon_rpc_endpoint.clone(),
 		broadcasting_network_id: 50312,
 	})?;
 	let output = salt.transaction(TransactionInfo {
@@ -97,8 +106,12 @@ async fn main() -> color_eyre::Result<()> {
 	})
 	.await
 	.wrap_err("Unable to send transaction")?;
-	
-	info!("Done salt token transaction!");
+	info!(%output, "Done salt token transaction!");
+
+	loop {
+		tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+		sanity_check().await?;
+	}
 
 	// let somnia_rpc = env.somnia_shannon_rpc_endpoint;
 

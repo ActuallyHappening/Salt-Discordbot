@@ -2,7 +2,7 @@ use url::Url;
 
 use crate::prelude::*;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Env {
 	pub private_key: String,

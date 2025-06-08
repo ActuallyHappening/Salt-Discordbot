@@ -8,7 +8,7 @@ pub mod prelude {
 	pub(crate) use camino::{Utf8Path, Utf8PathBuf};
 }
 
-use std::{net::SocketAddrV4, process::ExitStatus};
+use std::{net::SocketAddrV4, process::ExitStatus, sync::Arc};
 
 use camino::FromPathBufError;
 use cli::{AsyncCommand, Output};
@@ -224,7 +224,7 @@ mod tests {
 	fn api_is_send() {
 		fn is_send<T: Sync>(_t: T) {}
 		let salt: Salt = unimplemented!();
-		is_send(logging(unimplemented!(), &mut |str| ()));
+		is_send(logging(unimplemented!(), &mut |str| (), unimplemented!()));
 		is_send(salt.transaction(TransactionInfo {
 			amount: todo!(),
 			vault_address: todo!(),
@@ -239,26 +239,40 @@ mod tests {
 #[tracing::instrument(name = "logging", skip_all)]
 async fn logging(
 	listener: tokio::net::TcpListener,
-	mut cb: &mut (impl FnMut(String) + Send + 'static),
+	cb: &mut (impl FnMut(String) + Send + 'static),
+	stop_listening: &tokio::sync::Notify,
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
 	const MARKER: char = '🪵';
 	loop {
 		trace!("Waiting for new connection");
-		let (mut socket, _) = listener
-			.accept()
-			.await
-			.wrap_err("Failed to accept connection")?;
+		let mut socket = tokio::select! {
+			biased;
+			_ = stop_listening.notified() => {
+				debug!("Stopping instead of accepting another connection");
+				return Ok(());
+			}
+			res = listener.accept() => {
+				let (socket, _) = res.wrap_err("Failed to accept connection")?;
+				socket
+			}
+		};
 		debug!("Accepted a connection");
 
 		let mut bytes: Vec<u8> = vec![];
 
 		loop {
-			let bytes_read = socket
-				.read_buf(&mut bytes)
-				.await
-				.wrap_err("Couldn't read to buf")?;
+			let bytes_read = tokio::select! {
+				biased;
+				_ = stop_listening.notified() => {
+					debug!("Stopping instead of reading any more data");
+					return Ok(());
+				}
+				bytes_read = socket.read_buf(&mut bytes) => {
+					bytes_read.wrap_err("Couldn't read to buf")?
+				}
+			};
 			trace!(
 				"Received {} bytes, now reads: {}",
 				bytes_read,
@@ -286,7 +300,7 @@ async fn logging(
 				trace!(%msg, "Sending message");
 				cb(msg.to_string());
 			}
-			// replace bug
+			// replace buf
 			bytes.clear();
 			bytes.extend_from_slice(in_progress.as_bytes());
 		}
@@ -327,22 +341,30 @@ impl Salt {
 		// 		tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 		// 	}
 		// };
-		let cmd = self
-			.cmd([
-				"-amount",
-				amount,
-				"-vault-address",
-				vault_address,
-				"-recipient-address",
-				recipient_address,
-				"-data",
-				data,
-				"-logging-port",
-				&addr.port().to_string(),
-			])?
-			.run_and_wait_for_output();
-		
-		let logging = logging(listener, cb);
+		let stop_listenning = Arc::new(tokio::sync::Notify::new());
+		let stop_listening2 = stop_listenning.clone();
+		let cmd = async move {
+			let stop_listening = stop_listening2;
+			let output = self
+				.cmd([
+					"-amount",
+					amount,
+					"-vault-address",
+					vault_address,
+					"-recipient-address",
+					recipient_address,
+					"-data",
+					data,
+					"-logging-port",
+					&addr.port().to_string(),
+				])?
+				.run_and_wait_for_output()
+				.await?;
+			stop_listening.notify_one();
+			Result::<_, Error>::Ok(output)
+		};
+
+		let logging = logging(listener, cb, &stop_listenning);
 
 		let (output, log_res) = tokio::join!(cmd, logging);
 		if let Err(err) = log_res {
