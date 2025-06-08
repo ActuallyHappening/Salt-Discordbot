@@ -34,7 +34,7 @@ async fn main() -> color_eyre::Result<()> {
 			vault_address: &vault_address,
 			recipient_address: &recipient_address,
 			data: "",
-			logging: &mut |msg| info!(%msg),
+			logging: &mut async |msg| info!(%msg),
 		})
 		.await
 		.wrap_err("Couldn't do salt transaction")?;

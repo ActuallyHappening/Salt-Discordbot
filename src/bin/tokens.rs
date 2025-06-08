@@ -12,6 +12,7 @@ use alloy::{
 };
 use color_eyre::eyre::Context as _;
 use hex::prelude::*;
+use salt_sdk::TransactionInfo;
 
 #[path = "../tracing.rs"]
 mod app_tracing;
@@ -48,16 +49,36 @@ async fn main() -> color_eyre::Result<()> {
 	   }
 	}
 
-	let to = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
-	let amount = parse_ether("0.5")?;
-
 	let env = salt_discordbot::env::Env::default()?;
+	let personal = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
+	let salt_wallet: Address = env.faucet_testnet_salt_account_address.parse()?;
+
+	// check balances for sanity
 	let provider = alloy::providers::ProviderBuilder::new()
 		.connect(env.somnia_shannon_rpc_endpoint.as_str())
 		.await?;
+	let personal_balance: ParseUnits = ERC20::new(PING, provider.clone())
+		.balanceOf(personal)
+		.call()
+		.await?
+		.into();
+	info!(
+		"Personal balance of PING: {}",
+		personal_balance.format_units(Unit::ETHER)
+	);
+	let salt_balance: ParseUnits = ERC20::new(PING, provider)
+		.balanceOf(salt_wallet)
+		.call()
+		.await?
+		.into();
+	info!("Salt balance of PING: {}", salt_balance.format_units(Unit::ETHER));
+
+	// AWESOME!
+	// A salt token transfer
+	let amount = parse_ether("0.5")?;
 	let call = ERC20::transferCall {
 		amount,
-		recipient: to,
+		recipient: personal,
 	};
 	let data_str = call.abi_encode().to_lower_hex_string();
 
@@ -67,7 +88,17 @@ async fn main() -> color_eyre::Result<()> {
 		broadcasting_network_rpc_node: env.somnia_shannon_rpc_endpoint,
 		broadcasting_network_id: 50312,
 	})?;
-	salt.transaction(info);
+	let output = salt.transaction(TransactionInfo {
+		amount: "0",
+		vault_address: &env.faucet_testnet_salt_account_address.to_string(),
+		recipient_address: &PING.to_string(),
+		data: &data_str,
+		logging: &mut async |msg| info!(%msg, "Transaction live logs"),
+	})
+	.await
+	.wrap_err("Unable to send transaction")?;
+	
+	info!("Done salt token transaction!");
 
 	// let somnia_rpc = env.somnia_shannon_rpc_endpoint;
 
