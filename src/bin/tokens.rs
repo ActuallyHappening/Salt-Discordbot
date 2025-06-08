@@ -52,10 +52,12 @@ async fn main() -> color_eyre::Result<()> {
 
 	let env = salt_discordbot::env::Env::default()?;
 	let personal = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
-	let salt_wallet: Address = env.faucet_testnet_salt_account_address.parse()?;
+	// /// TODO: Find a way for this to be done through salt_sdk?
+	// const SALT_CONTRACT: Address = address!("0x14E559E06a524fb546e2eaceF79A11aEC85c16C2");
 
 	let sanity_check = async || {
 		// check balances for sanity
+		let salt_wallet: Address = env.faucet_testnet_salt_account_address.parse()?;
 		let provider = alloy::providers::ProviderBuilder::new()
 			.connect(env.somnia_shannon_rpc_endpoint.as_str())
 			.await?;
@@ -97,15 +99,17 @@ async fn main() -> color_eyre::Result<()> {
 		broadcasting_network_rpc_node: env.somnia_shannon_rpc_endpoint.clone(),
 		broadcasting_network_id: 50312,
 	})?;
-	let output = salt.transaction(TransactionInfo {
-		amount: "0",
-		vault_address: &env.faucet_testnet_salt_account_address.to_string(),
-		recipient_address: &PING.to_string(),
-		data: &data_str,
-		logging: &mut |msg| info!(%msg, "Transaction live logs"),
-	})
-	.await
-	.wrap_err("Unable to send transaction")?;
+	let output = salt
+		.transaction(TransactionInfo {
+			amount: "0",
+			vault_address: &env.faucet_testnet_salt_account_address.to_string(),
+			recipient_address: &PING.to_string(),
+			data: &data_str,
+			logging: &mut |msg| info!(%msg, "Transaction live logs"),
+			gas: salt_sdk::GasEstimator::Mul(100.0),
+		})
+		.await
+		.wrap_err("Unable to send transaction")?;
 	info!(%output, "Done salt token transaction!");
 
 	loop {

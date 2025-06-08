@@ -316,6 +316,7 @@ impl SupportedChain {
 			recipient_address: &address,
 			data: "",
 			logging: &mut log_cb,
+			gas: salt_sdk::GasEstimator::Mul(10.0),
 		});
 		let interaction2 = interaction.clone();
 		let logging = async move {

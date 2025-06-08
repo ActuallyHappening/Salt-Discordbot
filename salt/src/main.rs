@@ -3,7 +3,7 @@ mod tracing;
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
 use color_eyre::eyre::Context as _;
-use salt_sdk::{Salt, TransactionInfo};
+use salt_sdk::{GasEstimator, Salt, TransactionInfo};
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -35,6 +35,7 @@ async fn main() -> color_eyre::Result<()> {
 			recipient_address: &recipient_address,
 			data: "",
 			logging: &mut |msg| info!(%msg),
+			gas: GasEstimator::Default,
 		})
 		.await
 		.wrap_err("Couldn't do salt transaction")?;

@@ -93,10 +93,10 @@ pub enum Error {
 	ExecutableFileDoesntExist(Utf8PathBuf),
 
 	#[error("Failed to execute subprocess: {0}")]
-	FailedToExecute(std::io::Error),
+	FailedToExecute(#[source] std::io::Error),
 
 	#[error("Something went wrong collecting salt-asset-manager logs: {0}")]
-	LiveLogging(color_eyre::Report),
+	LiveLogging(#[source] color_eyre::Report),
 
 	#[error("Subprocess exited badly: {0:?}")]
 	SubprocessExitedBadly(ExitStatus),
@@ -105,7 +105,7 @@ pub enum Error {
 	SubprocessExitedBadlyWithOutput(Output),
 
 	#[error("Couldn't make anonymous pipe: {0}")]
-	CouldntMakeAnonymousePipe(std::io::Error),
+	CouldntMakeAnonymousePipe(#[source] std::io::Error),
 
 	#[error(
 		"Expected `{bin_name}` binary to be in PATH environment variable or finable with which https://docs.rs/which/latest/which/fn.which.html ({err_msg}): {which}"
@@ -113,8 +113,12 @@ pub enum Error {
 	Which {
 		bin_name: String,
 		err_msg: String,
+		#[source]
 		which: ::which::Error,
 	},
+
+	#[error("Can't serialize as JSON: {0}")]
+	SerdeJson(#[source] color_eyre::Report),
 }
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
@@ -213,7 +217,15 @@ where
 	pub vault_address: &'a str,
 	pub recipient_address: &'a str,
 	pub data: &'a str,
+	pub gas: GasEstimator,
 	pub logging: &'a mut F,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
+pub enum GasEstimator {
+	#[default]
+	Default,
+	Mul(f64),
 }
 
 #[cfg(test)]
@@ -230,6 +242,7 @@ mod tests {
 			vault_address: todo!(),
 			recipient_address: todo!(),
 			data: todo!(),
+			gas: todo!(),
 			logging: &mut |str| (),
 		}));
 	}
@@ -320,6 +333,7 @@ impl Salt {
 			vault_address,
 			recipient_address,
 			data,
+			gas,
 			logging: cb,
 		} = info;
 
@@ -357,6 +371,10 @@ impl Salt {
 					data,
 					"-logging-port",
 					&addr.port().to_string(),
+					"-gas",
+					&serde_json::to_string(&gas)
+						.wrap_err("Can't serialize gas")
+						.map_err(Error::SerdeJson)?,
 				])?
 				.run_and_wait_for_output()
 				.await?;
