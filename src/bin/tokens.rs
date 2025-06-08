@@ -1,15 +1,16 @@
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
+use alloy::sol_types::SolCall;
 use alloy::{
 	primitives::{
-		address, utils::{parse_ether, ParseUnits, Unit}, Address, FixedBytes, Uint, U256
+		Address, FixedBytes, U256, Uint, address,
+		utils::{ParseUnits, Unit, parse_ether},
 	},
 	providers::ProviderBuilder,
-	signers::{k256::sha2::digest::typenum::UInt, Signer},
+	signers::{Signer, k256::sha2::digest::typenum::UInt},
 	sol,
 };
 use color_eyre::eyre::Context as _;
-use alloy::sol_types::SolCall;
 use hex::prelude::*;
 
 #[path = "../tracing.rs"]
@@ -51,9 +52,22 @@ async fn main() -> color_eyre::Result<()> {
 	let amount = parse_ether("0.5")?;
 
 	let env = salt_discordbot::env::Env::default()?;
-	let provider = alloy::providers::ProviderBuilder::new().connect(env.somnia_shannon_rpc_endpoint.as_str()).await?;
-	let call = ERC20::transferCall { amount, recipient: to };
+	let provider = alloy::providers::ProviderBuilder::new()
+		.connect(env.somnia_shannon_rpc_endpoint.as_str())
+		.await?;
+	let call = ERC20::transferCall {
+		amount,
+		recipient: to,
+	};
 	let data_str = call.abi_encode().to_lower_hex_string();
+
+	let salt = salt_sdk::Salt::new(salt_sdk::SaltConfig {
+		private_key: env.private_key,
+		orchestration_network_rpc_node: env.sepolia_arbitrum_rpc_endpoint,
+		broadcasting_network_rpc_node: env.somnia_shannon_rpc_endpoint,
+		broadcasting_network_id: 50312,
+	})?;
+	salt.transaction(info);
 
 	// let somnia_rpc = env.somnia_shannon_rpc_endpoint;
 

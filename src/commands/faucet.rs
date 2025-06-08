@@ -300,7 +300,7 @@ impl SupportedChain {
 		let (send_logs, mut live_logs) = tokio::sync::mpsc::channel(10);
 		let salt_config = SaltConfig {
 			private_key: state.env.private_key.clone(),
-			orchestration_network_rpc_node: state.env.orchestration_network_rpc_node_url.clone(),
+			orchestration_network_rpc_node: state.env.sepolia_arbitrum_rpc_endpoint.clone(),
 			broadcasting_network_rpc_node: rpc_url,
 			broadcasting_network_id: chain_id,
 		};
@@ -310,7 +310,11 @@ impl SupportedChain {
 			vault_address: &state.env.faucet_testnet_salt_account_address,
 			recipient_address: &address,
 			data: "",
-			logging: send_logs,
+			logging: Box::new(move |msg| {
+				if let Err(err) = send_logs.blocking_send(msg) {
+					error!("Failed to send live log msg: {}", err);
+				}
+			}),
 		});
 		let interaction2 = interaction.clone();
 		let logging = async move {

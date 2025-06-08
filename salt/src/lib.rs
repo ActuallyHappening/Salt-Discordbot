@@ -205,17 +205,100 @@ impl Salt {
 	}
 }
 
-pub struct TransactionInfo<'a> {
+pub struct TransactionInfo<'a, F>
+where
+	F: FnMut(String) + Send,
+{
 	pub amount: &'a str,
 	pub vault_address: &'a str,
 	pub recipient_address: &'a str,
 	pub data: &'a str,
-	pub logging: tokio::sync::mpsc::Sender<String>,
+	pub logging: &'a mut F,
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[test]
+	#[allow(unreachable_code, unused)]
+	fn api_is_send() {
+		fn is_send<T: Sync>(_t: T) {}
+		let salt: Salt = unimplemented!();
+		is_send(logging(unimplemented!(), |str| ()));
+		is_send(salt.transaction(TransactionInfo {
+			amount: todo!(),
+			vault_address: todo!(),
+			recipient_address: todo!(),
+			data: todo!(),
+			logging: &mut |str| (),
+		}));
+	}
+}
+
+/// Never returns
+#[tracing::instrument(name = "logging", skip_all)]
+async fn logging(
+	listener: tokio::net::TcpListener,
+	mut cb: impl FnMut(String) + Send,
+) -> Result<(), color_eyre::Report> {
+	/// A marker for the end of a log
+	/// (its a log emojie)
+	const MARKER: char = '🪵';
+	loop {
+		trace!("Waiting for new connection");
+		let (mut socket, _) = listener
+			.accept()
+			.await
+			.wrap_err("Failed to accept connection")?;
+		debug!("Accepted a connection");
+
+		let mut bytes: Vec<u8> = vec![];
+
+		loop {
+			let bytes_read = socket
+				.read_buf(&mut bytes)
+				.await
+				.wrap_err("Couldn't read to buf")?;
+			trace!(
+				"Received {} bytes, now reads: {}",
+				bytes_read,
+				String::from_utf8_lossy(&bytes)
+			);
+
+			if bytes_read == 0 {
+				debug!("Disconnecting");
+				if bytes.len() > 0 {
+					let message = String::from_utf8_lossy(&bytes);
+					trace!(%message, "Sending message with the remaining bytes because of a disconnect");
+					cb(message.into_owned());
+				}
+				break;
+			}
+
+			// send any messages seperated by MARKER
+			let buf_clone = &bytes.clone();
+			let string = String::from_utf8_lossy(buf_clone);
+			let subslices: Vec<&str> = string.split(|char: char| char == MARKER).collect();
+			let (in_progress, to_send) = subslices.split_last().ok_or(eyre!("Buf empty?"))?;
+			trace!("To send len: {}", to_send.len());
+			// send
+			for msg in to_send {
+				trace!(%msg, "Sending message");
+				cb(msg.to_string());
+			}
+			// replace bug
+			bytes.clear();
+			bytes.extend_from_slice(in_progress.as_bytes());
+		}
+	}
 }
 
 impl Salt {
 	#[tracing::instrument(name = "transaction", skip_all)]
-	pub async fn transaction(&self, info: TransactionInfo<'_>) -> Result<Output> {
+	pub async fn transaction<F>(&self, info: TransactionInfo<'_, F>) -> Result<Output>
+	where
+		F: FnMut(String) + Send,
+	{
 		debug!("Beginning transaction ...");
 
 		let TransactionInfo {
@@ -223,13 +306,10 @@ impl Salt {
 			vault_address,
 			recipient_address,
 			data,
-			logging: logging_channel,
+			logging: cb,
 		} = info;
 
 		let addr: SocketAddrV4 = "127.0.0.1:0000".parse().unwrap();
-		/// A marker for the end of a log
-		/// (its a log emojie)
-		const MARKER: char = '🪵';
 		let listener = tokio::net::TcpListener::bind(addr)
 			.await
 			.wrap_err("Couldn't bind tcp listener to port")
@@ -240,69 +320,6 @@ impl Salt {
 			.wrap_err("Couldn't get local addr")
 			.map_err(Error::LiveLogging)?;
 		debug!(%addr, "Using this port for IPC logging");
-
-		/// Never returns
-		#[tracing::instrument(name = "logging", skip_all)]
-		async fn logging(
-			listener: tokio::net::TcpListener,
-			channel: tokio::sync::mpsc::Sender<String>,
-		) -> Result<Output, color_eyre::Report> {
-			loop {
-				trace!("Waiting for new connection");
-				let (mut socket, _) = listener
-					.accept()
-					.await
-					.wrap_err("Failed to accept connection")?;
-				debug!("Accepted a connection");
-
-				let mut bytes: Vec<u8> = vec![];
-				let send = async |message: &str| -> color_eyre::Result<_> {
-					channel
-						.send(message.to_owned())
-						.await
-						.wrap_err("Couldn't send new message")
-						.note(format!("Message: {}", message))
-				};
-
-				loop {
-					let bytes_read = socket
-						.read_buf(&mut bytes)
-						.await
-						.wrap_err("Couldn't read to buf")?;
-					trace!(
-						"Received {} bytes, now reads: {}",
-						bytes_read,
-						String::from_utf8_lossy(&bytes)
-					);
-
-					if bytes_read == 0 {
-						debug!("Disconnecting");
-						if bytes.len() > 0 {
-							let message = String::from_utf8_lossy(&bytes);
-							trace!(%message, "Sending message with the remaining bytes because of a disconnect");
-							send(&message).await?;
-						}
-						break;
-					}
-
-					// send any messages seperated by MARKER
-					let buf_clone = &bytes.clone();
-					let string = String::from_utf8_lossy(buf_clone);
-					let subslices: Vec<&str> = string.split(|char: char| char == MARKER).collect();
-					let (in_progress, to_send) =
-						subslices.split_last().ok_or(eyre!("Buf empty?"))?;
-					trace!("To send len: {}", to_send.len());
-					// send
-					for msg in to_send {
-						trace!(%msg, "Sending message");
-						send(msg).await?;
-					}
-					// replace bug
-					bytes.clear();
-					bytes.extend_from_slice(in_progress.as_bytes());
-				}
-			}
-		}
 
 		// let cmd = async move {
 		// 	loop {
@@ -324,18 +341,12 @@ impl Salt {
 				&addr.port().to_string(),
 			])?
 			.run_and_wait_for_output();
+		let logging = logging(listener, cb);
 
-		let output: Result<Output, Error> = tokio::select! {
-			biased;
-			res = logging(listener, logging_channel) => {
-				trace!("Logging task finished first");
-				res.wrap_err("Error running logging task").map_err(Error::LiveLogging)
-			}
-			res = cmd => {
-				trace!("Command task finished first");
-				res
-			}
-		};
+		let (output, log_res) = tokio::join!(cmd, logging);
+		if let Err(err) = log_res {
+			error!(%err, "Error running logging task");
+		}
 
 		debug!(
 			"Finished transaction {}",

@@ -5,6 +5,8 @@ use crate::prelude::*;
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Env {
+	pub private_key: String,
+	
 	pub bot_application_id: String,
 	pub bot_token: String,
 
@@ -13,9 +15,6 @@ pub struct Env {
 	pub sepolia_etherium_rpc_endpoint: Url,
 	pub polygon_amoy_rpc_endpoint: Url,
 	pub faucet_testnet_salt_account_address: String,
-
-	pub private_key: String,
-	pub orchestration_network_rpc_node_url: Url,
 }
 
 /// Only statically includes toml if building for release,
@@ -52,7 +51,6 @@ impl Env {
 			polygon_amoy_rpc_endpoint: ENV.polygon_amoy_rpc_endpoint.parse()?,
 			faucet_testnet_salt_account_address: ENV.faucet_testnet_salt_account_address.parse()?,
 			private_key: ENV.private_key.into(),
-			orchestration_network_rpc_node_url: ENV.orchestration_network_rpc_node_url.parse()?,
 		})
 	}
 }

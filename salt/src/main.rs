@@ -2,7 +2,7 @@ mod tracing;
 
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
-use color_eyre::eyre::{bail, Context as _};
+use color_eyre::eyre::Context as _;
 use salt_sdk::{Salt, TransactionInfo};
 
 #[tokio::main]
@@ -28,33 +28,18 @@ async fn main() -> color_eyre::Result<()> {
 	let vault_address = rl.readline("Vault address: ")?;
 	let recipient_address = rl.readline("Recipient address: ")?;
 
-	let (send, mut recv) = tokio::sync::mpsc::channel(5);
-	let transaction = salt.transaction(TransactionInfo {
-		amount: &amount,
-		vault_address: &vault_address,
-		recipient_address: &recipient_address,
-		data: "",
-		logging: send,
-	});
-	let log = async move {
-		loop {
-			if let Some(msg) = recv.recv().await {
-				info!(%msg);
-			}
-		}
-	};
+	let transaction = salt
+		.transaction(TransactionInfo {
+			amount: &amount,
+			vault_address: &vault_address,
+			recipient_address: &recipient_address,
+			data: "",
+			logging: &mut |msg| info!(%msg),
+		})
+		.await
+		.wrap_err("Couldn't do salt transaction")?;
 
-	let output = tokio::select! {
-		biased;
-		_ = log => {
-			bail!("Logging errored?");
-		},
-		output = transaction => {
-			output.wrap_err("Couldn't do salt transaction")
-		}
-	}?;
-
-	info!("Salt transaction completed:\n{}", output);
+	info!("Salt transaction completed:\n{}", transaction);
 
 	Ok(())
 }
