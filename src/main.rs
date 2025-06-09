@@ -10,7 +10,19 @@ async fn main() -> color_eyre::Result<()> {
 		.install_default()
 		.expect("Couldn't install default crypto provider");
 
-	salt_discordbot::main().await?;
+	loop {
+		match salt_discordbot::main().await {
+			Ok(()) => {
+				// ctrlc, clean exit, actually exit
+				break;
+			}
+			Err(err) => {
+				::tracing::error!(?err, "Top level error!");
+				// keep looping
+				continue
+			}
+		}
+	}
 
 	::tracing::info!("Stopping discord server cleanly");
 
