@@ -305,10 +305,16 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let mut log_cb = move |msg| {
-			if let Err(err) = send_logs.blocking_send(msg) {
-				error!("Failed to send live log msg: {}", err);
-			}
+		let mut log_cb = move |msg: String| {
+			tokio::spawn({
+				let msg = msg.clone();
+				let send_logs = send_logs.clone();
+				async move {
+					if let Err(err) = send_logs.send(msg).await {
+						error!("Failed to send live log msg: {}", err);
+					}
+				}
+			});
 		};
 		let transaction = salt.transaction(TransactionInfo {
 			amount: &amount,

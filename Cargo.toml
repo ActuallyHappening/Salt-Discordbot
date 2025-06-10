@@ -28,12 +28,9 @@ time = { version = "0.3.37", features = ["local-offset", "macros", "serde"] }
 tokio = { version = "1.43.0", features = ["full"] }
 toml = "0.8.22"
 tracing = "0.1.41"
+tracing-appender = "0.2.3"
 tracing-error = "0.2.1"
-tracing-subscriber = { version = "0.3.19", features = [
-  "fmt",
-  "env-filter",
-  "time",
-] }
+tracing-subscriber = { version = "0.3.19", features = ["fmt", "env-filter", "time", "json"] }
 twilight = "0.16.0"
 twilight-cache-inmemory = "0.16.0"
 twilight-gateway = { version = "0.16.0", features = ["rustls-aws-lc-rs"] }
@@ -48,3 +45,6 @@ url = { version = "2.5.4", features = ["serde"] }
 color-eyre = "0.6.3"
 toml = "0.8.22"
 toml_edit = "0.22.26"
+
+[lints.rust]
+unused_imports = "allow"
