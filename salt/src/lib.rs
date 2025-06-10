@@ -220,11 +220,18 @@ pub enum LiveLogging {
 }
 
 impl LiveLogging {
-	pub fn from_cb<F>(cb: F) -> Self
+	pub fn from_cb<F>(mut cb: F) -> Self
 	where
 		F: FnMut(String) + Send + 'static,
 	{
-		Self::from(cb)
+		// going to do some tokio schenanigans
+		let (send, mut recv) = tokio::sync::mpsc::channel(10);
+		tokio::spawn(async move {
+			while let Some(log) = recv.recv().await {
+				cb(log);
+			}
+		});
+		Self::Channel(send)
 	}
 
 	pub fn from_sender(sender: tokio::sync::mpsc::Sender<String>) -> Self {
@@ -240,23 +247,6 @@ impl LiveLogging {
 				}
 			}
 		}
-	}
-}
-
-impl<F> From<F> for LiveLogging
-where
-	F: FnMut(String) + Send + 'static,
-{
-	fn from(mut value: F) -> Self {
-		// Self::Cb(Box::new(value))
-		// going to do some tokio schenanigans
-		let (send, mut recv) = tokio::sync::mpsc::channel(10);
-		tokio::spawn(async move {
-			while let Some(log) = recv.recv().await {
-				value(log);
-			}
-		});
-		Self::Channel(send)
 	}
 }
 
@@ -301,7 +291,7 @@ mod tests {
 			recipient_address: todo!(),
 			data: todo!(),
 			gas: todo!(),
-			logging: LiveLogging::from(|str| ()),
+			logging: LiveLogging::from_cb(|str| ()),
 		}));
 	}
 }

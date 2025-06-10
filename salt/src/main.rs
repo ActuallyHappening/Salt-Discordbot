@@ -34,7 +34,7 @@ async fn main() -> color_eyre::Result<()> {
 			vault_address: &vault_address,
 			recipient_address: &recipient_address,
 			data: "",
-			logging: LiveLogging::from(|msg| info!(%msg)),
+			logging: LiveLogging::from_cb(|msg| info!(%msg)),
 			gas: GasEstimator::Default,
 		})
 		.await
