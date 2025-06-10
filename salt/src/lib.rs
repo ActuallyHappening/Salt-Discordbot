@@ -209,16 +209,70 @@ impl Salt {
 	}
 }
 
-pub struct TransactionInfo<'a, F>
+/// A convenience utility type,
+/// ```rust
+/// use salt_sdk::Logging;
+///
+/// let log: Logging = Logging::from(|msg: String| tracing::info!(%msg, "Live log!"));
+/// ```
+pub enum LiveLogging {
+	Channel(tokio::sync::mpsc::Sender<String>),
+}
+
+impl LiveLogging {
+	pub fn from_cb<F>(cb: F) -> Self
+	where
+		F: FnMut(String) + Send + 'static,
+	{
+		Self::from(cb)
+	}
+
+	pub fn from_sender(sender: tokio::sync::mpsc::Sender<String>) -> Self {
+		Self::Channel(sender)
+	}
+
+	async fn send(&mut self, msg: String) {
+		match self {
+			// Self::Cb(cb) => cb(msg),
+			Self::Channel(send) => {
+				if let Err(err) = send.send(msg).await {
+					error!(%err, "Tried to send a live log after receiver was dropped");
+				}
+			}
+		}
+	}
+}
+
+impl<F> From<F> for LiveLogging
 where
-	F: FnMut(String) + Send,
+	F: FnMut(String) + Send + 'static,
 {
+	fn from(mut value: F) -> Self {
+		// Self::Cb(Box::new(value))
+		// going to do some tokio schenanigans
+		let (send, mut recv) = tokio::sync::mpsc::channel(10);
+		tokio::spawn(async move {
+			while let Some(log) = recv.recv().await {
+				value(log);
+			}
+		});
+		Self::Channel(send)
+	}
+}
+
+impl From<tokio::sync::mpsc::Sender<String>> for LiveLogging {
+	fn from(value: tokio::sync::mpsc::Sender<String>) -> Self {
+		Self::Channel(value)
+	}
+}
+
+pub struct TransactionInfo<'a> {
 	pub amount: &'a str,
 	pub vault_address: &'a str,
 	pub recipient_address: &'a str,
 	pub data: &'a str,
 	pub gas: GasEstimator,
-	pub logging: F,
+	pub logging: LiveLogging,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
@@ -236,14 +290,18 @@ mod tests {
 	fn api_is_send() {
 		fn is_send<T: Sync>(_t: T) {}
 		let salt: Salt = unimplemented!();
-		is_send(logging(unimplemented!(), &mut |str| (), unimplemented!()));
+		is_send(logging(
+			unimplemented!(),
+			unimplemented!(),
+			unimplemented!(),
+		));
 		is_send(salt.transaction(TransactionInfo {
 			amount: todo!(),
 			vault_address: todo!(),
 			recipient_address: todo!(),
 			data: todo!(),
 			gas: todo!(),
-			logging: &mut |str| (),
+			logging: LiveLogging::from(|str| ()),
 		}));
 	}
 }
@@ -252,7 +310,7 @@ mod tests {
 #[tracing::instrument(name = "logging", skip_all)]
 async fn logging(
 	listener: tokio::net::TcpListener,
-	mut cb: impl FnMut(String) + Send + 'static,
+	mut logging: LiveLogging,
 	stop_listening: &tokio::sync::Notify,
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log
@@ -297,7 +355,7 @@ async fn logging(
 				if bytes.len() > 0 {
 					let message = String::from_utf8_lossy(&bytes);
 					trace!(%message, "Sending message with the remaining bytes because of a disconnect");
-					cb(message.into_owned());
+					logging.send(message.into_owned()).await;
 				}
 				break;
 			}
@@ -311,7 +369,7 @@ async fn logging(
 			// send
 			for msg in to_send {
 				trace!(%msg, "Sending message");
-				cb(msg.to_string());
+				logging.send(msg.to_string()).await;
 			}
 			// replace buf
 			bytes.clear();
@@ -322,10 +380,7 @@ async fn logging(
 
 impl Salt {
 	#[tracing::instrument(name = "transaction", skip_all)]
-	pub async fn transaction<F>(&self, info: TransactionInfo<'_, F>) -> Result<Output>
-	where
-		F: FnMut(String) + Send + 'static,
-	{
+	pub async fn transaction(&self, info: TransactionInfo<'_>) -> Result<Output> {
 		debug!("Beginning transaction ...");
 
 		let TransactionInfo {

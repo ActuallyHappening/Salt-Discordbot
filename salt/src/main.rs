@@ -3,7 +3,7 @@ mod tracing;
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
 use color_eyre::eyre::Context as _;
-use salt_sdk::{GasEstimator, Salt, TransactionInfo};
+use salt_sdk::{GasEstimator, LiveLogging, Salt, TransactionInfo};
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -34,7 +34,7 @@ async fn main() -> color_eyre::Result<()> {
 			vault_address: &vault_address,
 			recipient_address: &recipient_address,
 			data: "",
-			logging: |msg| info!(%msg),
+			logging: LiveLogging::from(|msg| info!(%msg)),
 			gas: GasEstimator::Default,
 		})
 		.await

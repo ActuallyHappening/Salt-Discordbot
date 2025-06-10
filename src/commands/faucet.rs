@@ -305,23 +305,12 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let log_cb = move |msg: String| {
-			let send_logs = send_logs.clone();
-			tokio::spawn({
-				let msg = msg.clone();
-				async move {
-					if let Err(err) = send_logs.send(msg).await {
-						error!("Failed to send live log msg: {}", err);
-					}
-				}
-			});
-		};
 		let transaction = salt.transaction(TransactionInfo {
 			amount: &amount,
 			vault_address: &state.env.faucet_testnet_salt_account_address,
 			recipient_address: &address,
 			data: "",
-			logging: log_cb,
+			logging: salt_sdk::LiveLogging::from_sender(send_logs),
 			gas: salt_sdk::GasEstimator::Mul(10.0),
 		});
 		let interaction2 = interaction.clone();
