@@ -19,9 +19,9 @@ async fn main() -> color_eyre::Result<()> {
 			Err(err) => {
 				::tracing::error!(?err, "Top level error!");
 				// keep looping
-				continue
 			}
 		}
+		tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 	}
 
 	::tracing::info!("Stopping discord server cleanly");
