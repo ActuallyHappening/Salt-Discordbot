@@ -4,6 +4,7 @@
 !build.rs
 !salt
 !private-apis
+!intu-sdk
 
 !.gitmodules
 !.gitignore
