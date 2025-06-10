@@ -218,7 +218,7 @@ where
 	pub recipient_address: &'a str,
 	pub data: &'a str,
 	pub gas: GasEstimator,
-	pub logging: &'a mut F,
+	pub logging: F,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
@@ -252,7 +252,7 @@ mod tests {
 #[tracing::instrument(name = "logging", skip_all)]
 async fn logging(
 	listener: tokio::net::TcpListener,
-	cb: &mut (impl FnMut(String) + Send + 'static),
+	mut cb: impl FnMut(String) + Send + 'static,
 	stop_listening: &tokio::sync::Notify,
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log

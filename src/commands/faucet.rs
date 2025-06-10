@@ -305,10 +305,10 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let mut log_cb = move |msg: String| {
+		let log_cb = move |msg: String| {
+			let send_logs = send_logs.clone();
 			tokio::spawn({
 				let msg = msg.clone();
-				let send_logs = send_logs.clone();
 				async move {
 					if let Err(err) = send_logs.send(msg).await {
 						error!("Failed to send live log msg: {}", err);
@@ -321,7 +321,7 @@ impl SupportedChain {
 			vault_address: &state.env.faucet_testnet_salt_account_address,
 			recipient_address: &address,
 			data: "",
-			logging: &mut log_cb,
+			logging: log_cb,
 			gas: salt_sdk::GasEstimator::Mul(10.0),
 		});
 		let interaction2 = interaction.clone();
@@ -394,6 +394,7 @@ impl SupportedChain {
 				))
 				.await
 				.wrap_err("Couldn't follow up a successful transaction")?;
+			info!("Finished handling the discord interaction");
 		}
 
 		Ok(())

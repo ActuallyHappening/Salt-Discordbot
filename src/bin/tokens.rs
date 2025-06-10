@@ -105,7 +105,7 @@ async fn main() -> color_eyre::Result<()> {
 			vault_address: &env.faucet_testnet_salt_account_address.to_string(),
 			recipient_address: &PING.to_string(),
 			data: &data_str,
-			logging: &mut |msg| info!(%msg, "Transaction live logs"),
+			logging: |msg| info!(%msg, "Transaction live logs"),
 			gas: salt_sdk::GasEstimator::Mul(100.0),
 		})
 		.await
