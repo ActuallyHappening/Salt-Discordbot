@@ -3,6 +3,7 @@ name = "salt-discordbot"
 version = "0.1.0"
 edition = "2024"
 publish = false
+lints.workspace = true
 
 [workspace]
 members = [ "intu-sdk","salt"]
@@ -46,5 +47,5 @@ color-eyre = "0.6.3"
 toml = "0.8.22"
 toml_edit = "0.22.26"
 
-[lints.rust]
+[workspace.lints.rust]
 unused_imports = "allow"
