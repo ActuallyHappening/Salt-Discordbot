@@ -18,7 +18,7 @@ const SEPOLIA_ARBITRUM_RPC: &str = "https://sepolia-rollup.arbitrum.io/rpc";
 async fn main() -> color_eyre::Result<()> {
 	app_tracing::install_tracing("info,intu_sdk=trace,intu_cli=trace")?;
 
-	let signer: PrivateKeySigner = include_str!("private_key").parse()?;
+	let signer: PrivateKeySigner = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/private-key")).trim().parse()?;
 	let wallet = EthereumWallet::new(signer);
 	let provider = alloy::providers::ProviderBuilder::new()
 		.wallet(wallet.clone())
