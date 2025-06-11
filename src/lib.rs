@@ -223,6 +223,7 @@ mod per_user_spam_filter {
 		fn drop(&mut self) {
 			match self.mutex.0.lock() {
 				Ok(mut lock) => {
+					debug!("Removing user from spam filter becuase the guard dropped");
 					lock.remove(&self.discord_id);
 				}
 				Err(_) => {
