@@ -2,19 +2,22 @@
 name = "intu-sdk"
 version = "0.1.0"
 edition = "2024"
-lints.workspace = true
+
+[lints]
+workspace = true
 
 [features]
 default = ["cli"]
 cli = ["dep:rustyline", "dep:color-eyre", "dep:toml"]
 
 [[bin]]
-name = "salt-cli"
+name = "intu-cli"
 path = "src/main.rs"
 required-features = ["cli"]
 
 [dependencies]
 alloy = { version = "1.0.9", features = ["sol-types"] }
+base64 = "0.22.1"
 camino = "1.1.9"
 color-eyre = { version = "0.6.4", optional = true }
 rustyline = { version = "16.0.0", optional = true }

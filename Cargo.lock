@@ -2243,6 +2243,7 @@ name = "intu-sdk"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "base64",
  "camino",
  "color-eyre",
  "rustyline 16.0.0",
