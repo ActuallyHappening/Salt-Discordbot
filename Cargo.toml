@@ -3,10 +3,12 @@ name = "salt-discordbot"
 version = "0.1.0"
 edition = "2024"
 publish = false
-lints.workspace = true
+
+[lints]
+workspace = true
 
 [workspace]
-members = [ "intu-sdk","salt"]
+members = ["intu-sdk", "salt"]
 exclude = ["private-apis"]
 
 [workspace.dependencies]
@@ -31,7 +33,12 @@ toml = "0.8.22"
 tracing = "0.1.41"
 tracing-appender = "0.2.3"
 tracing-error = "0.2.1"
-tracing-subscriber = { version = "0.3.19", features = ["fmt", "env-filter", "time", "json"] }
+tracing-subscriber = { version = "0.3.19", features = [
+	"fmt",
+	"env-filter",
+	"time",
+	"json",
+] }
 twilight = "0.16.0"
 twilight-cache-inmemory = "0.16.0"
 twilight-gateway = { version = "0.16.0", features = ["rustls-aws-lc-rs"] }
