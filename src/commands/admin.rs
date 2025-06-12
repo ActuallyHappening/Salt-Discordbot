@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use crate::prelude::*;
 use camino::Utf8PathBuf;
 use color_eyre::{Section, eyre::Context as _};
@@ -24,6 +26,9 @@ pub(super) enum AdminCommand {
 
 	#[command(name = "dump-logs")]
 	DumpLogs(DumpLogs),
+
+	#[command(name = "stop")]
+	Stop(Stop),
 }
 
 impl AdminCommand {
@@ -75,6 +80,10 @@ impl AdminCommand {
 			}
 			AdminCommand::DumpLogs(cmd) => {
 				cmd.handle(state, interaction).await?;
+				Ok(())
+			}
+			AdminCommand::Stop(cmd) => {
+				cmd.handle().await;
 				Ok(())
 			}
 		}
@@ -162,5 +171,16 @@ impl DumpLogs {
 			id: 1,
 		};
 		Ok(attachment)
+	}
+}
+
+/// Stops the discordbot, hopefully taking it offline cleanly
+#[derive(Debug, Clone, CommandModel, CreateCommand)]
+#[command(name = "stop")]
+pub(super) struct Stop;
+
+impl Stop {
+	pub async fn handle(&self) {
+		crate::runner::SHUTDOWN.store(true, Ordering::Relaxed);
 	}
 }

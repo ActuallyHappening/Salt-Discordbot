@@ -1,6 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{atomic::{AtomicBool, Ordering}, LazyLock};
 
 use crate::{common::GlobalState, prelude::*};
+use tokio::sync::Notify;
 use twilight_gateway::{Event, EventTypeFlags, Shard, StreamExt as _};
 use twilight_model::application::interaction::InteractionData;
 
@@ -20,9 +21,10 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 		// Process Discord events
 		tracing::info!(kind = ?event.kind(), shard = ?shard.id().number(), "received event");
 		let state = state.clone();
-		tokio::spawn(async move {
-			process_interactions(state, event).await;
-		});
+		tokio::spawn(tokio::time::timeout(
+			std::time::Duration::from_secs(60 * 2),
+			async move { process_interactions(state, event).await },
+		));
 	}
 }
 
