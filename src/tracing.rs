@@ -1,11 +1,22 @@
+use camino::Utf8Path;
 use time::{UtcOffset, macros::format_description};
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::fmt::{format::{self, JsonFields}, time::OffsetTime};
+use tracing_subscriber::fmt::{
+	format::{self, JsonFields},
+	time::OffsetTime,
+};
 
 #[allow(unused)]
 pub struct Guard {
 	guard: WorkerGuard,
 }
+
+pub const LOGS_DIR: &str = if cfg!(not(debug_assertions)) {
+	"/home/ah/Desktop/logs"
+} else {
+	"/home/ah/Desktop/Salt-Discordbot/logs"
+};
+pub const PREFIX: &str = "rust-discordbot.json";
 
 pub fn install_tracing(filter: &str) -> color_eyre::Result<Guard> {
 	use tracing_error::ErrorLayer;
@@ -18,16 +29,13 @@ pub fn install_tracing(filter: &str) -> color_eyre::Result<Guard> {
 	// });
 	// let timer = OffsetTime::new(offset, format_description!("[hour]:[minute]:[second]"));
 
-	let file = {
-		if cfg!(not(debug_assertions)) {
-			"/home/ah/Desktop/logs"
-		} else {
-			"/home/ah/Desktop/Salt-Discordbot/logs"
-		}
-	};
+	if !camino::Utf8PathBuf::from(LOGS_DIR).is_dir() {
+		color_eyre::eyre::bail!("Logs directory not found");
+	}
+
 	let (file, guard) = tracing_appender::non_blocking(tracing_appender::rolling::daily(
-		file,
-		"rust-discordbot.json",
+		LOGS_DIR,
+		PREFIX,
 	));
 	let file_layer = fmt::layer()
 		.with_ansi(false)

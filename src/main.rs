@@ -1,8 +1,10 @@
-mod tracing;
+
+#[path = "tracing.rs"]
+mod app_tracing;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-	let _guard = tracing::install_tracing("info,salt_discord=trace,salt_sdk=debug")?;
+	let _guard = app_tracing::install_tracing("info,salt_discord=trace,salt_sdk=debug")?;
 
 	::tracing::info!("Started logging for the discord server");
 

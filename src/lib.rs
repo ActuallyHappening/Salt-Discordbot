@@ -19,6 +19,8 @@ pub(crate) mod errors {
 }
 
 mod chains;
+#[path = "tracing.rs"]
+mod app_tracing;
 
 pub use main::main;
 mod main {

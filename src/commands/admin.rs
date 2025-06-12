@@ -1,12 +1,15 @@
+use crate::prelude::*;
 use camino::Utf8PathBuf;
-use color_eyre::eyre::Context as _;
+use color_eyre::{Section, eyre::Context as _};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
 	application::interaction::{Interaction, application_command::CommandData},
-	http::interaction::{InteractionResponse, InteractionResponseType},
+	http::{
+		attachment::{self, Attachment},
+		interaction::{InteractionResponse, InteractionResponseType},
+	},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
-use crate::prelude::*;
 
 use crate::common::GlobalStateRef;
 
@@ -115,7 +118,13 @@ impl DumpLogs {
 
 		match self.get_file().await {
 			Ok(file) => {
-				todo!("Send file");
+				state
+					.client
+					.interaction(interaction.application_id)
+					.create_followup(&interaction.token)
+					.attachments(&[file])
+					.await
+					.wrap_err("Couldn't send attached logs file")?;
 				Ok(())
 			}
 			Err(err) => {
@@ -134,12 +143,24 @@ impl DumpLogs {
 		}
 	}
 
-	async fn get_file(
-		&self,
-	) -> color_eyre::Result<Utf8PathBuf> {
+	async fn get_file(&self) -> color_eyre::Result<Attachment> {
 		let now = time::OffsetDateTime::now_utc();
-		let format = time::macros::format_description!("rust-discordbot.json.[year]-[month]-[day]");
-		let file_name = now.format(&format);
-		todo!()
+		let format = time::macros::format_description!("[year]-[month]-[day]");
+		let file_timestamp = now.format(&format)?;
+		let file_name = format!("{}.{}", crate::app_tracing::PREFIX, file_timestamp);
+		let file_path = camino::Utf8PathBuf::from(crate::app_tracing::LOGS_DIR).join(&file_name);
+		if !file_path.is_file() {
+			bail!("Logs file not found at {}", file_path);
+		}
+		let data = std::fs::read(&file_path)
+			.wrap_err("Couldn't read log file")
+			.note(format!("Log file path: {}", file_path))?;
+		let attachment = Attachment {
+			description: Some(format!("Log file exported at {}", now)),
+			file: data,
+			filename: format!("rust-discordbot-{}.json", file_timestamp),
+			id: 1,
+		};
+		Ok(attachment)
 	}
 }
