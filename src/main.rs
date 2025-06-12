@@ -11,20 +11,8 @@ async fn main() -> color_eyre::Result<()> {
 	rustls::crypto::aws_lc_rs::default_provider()
 		.install_default()
 		.expect("Couldn't install default crypto provider");
-
-	loop {
-		match salt_discordbot::start().await {
-			Ok(()) => {
-				// ctrlc, clean exit, actually exit
-				break;
-			}
-			Err(err) => {
-				::tracing::error!(?err, "Top level error!");
-				// keep looping
-			}
-		}
-		tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-	}
+	
+	salt_discordbot::main().await;
 
 	::tracing::info!("Stopping discord server cleanly");
 

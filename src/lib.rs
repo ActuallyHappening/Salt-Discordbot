@@ -22,8 +22,10 @@ pub(crate) mod errors {
 mod app_tracing;
 mod chains;
 
-pub use main::start;
+pub use main::main;
 mod main {
+	use std::sync::atomic::{AtomicBool, Ordering};
+
 	use crate::{
 		commands::admin_commands, common::GlobalState, env, prelude::*, ratelimits::RateLimits,
 	};
@@ -33,7 +35,29 @@ mod main {
 	use twilight_http::Client;
 	use twilight_model::id::{Id, marker::GuildMarker};
 
-	pub async fn start() -> Result<()> {
+	pub async fn main() {
+		let keep_restarting = Arc::new(AtomicBool::new(true));
+		loop {
+			if !keep_restarting.load(Ordering::Acquire) {
+				return;
+			}
+			match start(keep_restarting.clone()).await {
+				Ok(()) => {
+					// ctrlc, clean exit, actually exit
+					break;
+				}
+				Err(err) => {
+					::tracing::error!(?err, "Top level error!");
+					// keep looping
+				}
+			}
+			if !keep_restarting.load(Ordering::Acquire) {
+				tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+			}
+		}
+	}
+
+	pub async fn start(keep_restarting: Arc<AtomicBool>) -> Result<()> {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
 		let ratelimits = RateLimits::read()?;
@@ -102,6 +126,7 @@ mod main {
 			},
 			_ = state.get().kill_now.notified() => {
 				debug!("Kill request has been listened to, shutting down now");
+				keep_restarting.store(false, Ordering::SeqCst);
 			}
 		};
 
