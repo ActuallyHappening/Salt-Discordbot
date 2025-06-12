@@ -33,8 +33,8 @@ impl PerUserSpamFilter {
 	}
 
 	pub(crate) fn dump(&self) -> String {
-		let mut guard = self.0.lock().or_poisoned();
-		let mut string = format!("Dump of internal per user spam filter ({}):", guard.len());
+		let guard = self.0.lock().or_poisoned();
+		let mut string = format!("Dump of internal per user spam filter ({}):\n", guard.len());
 		if guard.is_empty() {
 			string.push_str("No users are currently in the spam filter");
 		} else {

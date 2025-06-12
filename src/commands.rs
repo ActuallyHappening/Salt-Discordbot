@@ -2,10 +2,17 @@ use crate::{common::GlobalState, prelude::*};
 use twilight_interactions::command::CreateCommand;
 use twilight_model::application::interaction::{Interaction, application_command::CommandData};
 
-pub fn commands() -> Vec<twilight_model::application::command::Command> {
+pub fn public_commands() -> Vec<twilight_model::application::command::Command> {
 	[faucet::FaucetCommand::create_command().into()]
 		.into_iter()
 		.collect()
+}
+
+/// Includes all of [public_commands] as well
+pub fn admin_commands() -> Vec<twilight_model::application::command::Command> {
+	let mut public = public_commands();
+	public.extend([admin::AdminCommand::create_command().into()]);
+	public
 }
 
 /// Handle a command interaction.
@@ -23,5 +30,5 @@ pub async fn handle_command(
 	}
 }
 
-mod faucet;
 mod admin;
+mod faucet;

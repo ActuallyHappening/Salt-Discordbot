@@ -22,17 +22,23 @@ mod chains;
 
 pub use main::main;
 mod main {
-	use crate::{common::GlobalState, env, prelude::*, ratelimits::RateLimits};
+	use crate::{
+		commands::admin_commands, common::GlobalState, env, prelude::*, ratelimits::RateLimits,
+	};
 
 	use twilight_gateway::{ConfigBuilder, Intents};
 	use twilight_http::Client;
+	use twilight_model::id::{Id, marker::GuildMarker};
 
 	pub async fn main() -> Result<()> {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
 		let ratelimits = RateLimits::read()?;
 
-		info!("Starting discordbot for salt public addresss {}", env.faucet_testnet_salt_account_address);
+		info!(
+			"Starting discordbot for salt public addresss {}",
+			env.faucet_testnet_salt_account_address
+		);
 
 		// Initialize Twilight HTTP client and gateway configuration.
 		let client = Arc::new(Client::new(token.clone()));
@@ -53,15 +59,24 @@ mod main {
 			.build();
 
 		// Register global commands.
-		let commands = crate::commands::commands();
+		let public_commands = crate::commands::public_commands();
 		let application = client.current_user_application().await?.model().await?;
 		let interaction_client = client.interaction(application.id);
 
 		info!("Logged as {} with ID {}", application.name, application.id);
 
-		if let Err(error) = interaction_client.set_global_commands(&commands).await {
-			tracing::error!(?error, "failed to register commands");
-		}
+		interaction_client
+			.set_global_commands(&public_commands)
+			.await
+			.wrap_err("Failed to register global public commands")?;
+
+		// Register admin commands
+		let admin_commands = crate::commands::admin_commands();
+		let admin_server: Id<GuildMarker> = Id::new(1371363785985490975);
+		interaction_client
+			.set_guild_commands(admin_server, &admin_commands)
+			.await
+			.wrap_err("Couldn't set admin commands")?;
 
 		// Start gateway shards.
 		let shards =
@@ -79,6 +94,7 @@ mod main {
 		}
 
 		tokio::signal::ctrl_c().await?;
+		debug!("Ctrl-C has been registered, shutting down");
 		crate::runner::SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
 		for sender in senders {
 			// Ignore error if shard's already shutdown.
@@ -186,5 +202,5 @@ mod common {
 }
 
 pub mod env;
-mod ratelimits;
 mod per_user_spam_filter;
+mod ratelimits;
