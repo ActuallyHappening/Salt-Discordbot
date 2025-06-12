@@ -9,6 +9,9 @@ default-run = "salt-cli"
 license = "ISC"
 publish = true
 
+[lints]
+workspace = true
+
 [features]
 default = ["cli"]
 cli = ["dep:rustyline", "dep:color-eyre", "dep:toml"]

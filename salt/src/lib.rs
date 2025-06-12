@@ -8,7 +8,7 @@ pub mod prelude {
 	pub(crate) use camino::{Utf8Path, Utf8PathBuf};
 }
 
-use std::{net::SocketAddrV4, process::ExitStatus, sync::Arc};
+use std::{net::SocketAddrV4, process::ExitStatus};
 
 use camino::FromPathBufError;
 use cli::{AsyncCommand, Output};
@@ -17,7 +17,7 @@ use color_eyre::{
 	eyre::{Context as _, eyre},
 };
 use git::Git;
-use tokio::io::AsyncReadExt as _;
+use tokio::{io::AsyncReadExt as _, sync::oneshot};
 use url::Url;
 use which::which;
 
@@ -301,7 +301,7 @@ mod tests {
 async fn logging(
 	listener: tokio::net::TcpListener,
 	mut logging: LiveLogging,
-	stop_listening: &tokio::sync::Notify,
+	mut stop_listening: oneshot::Receiver<()>
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
@@ -310,7 +310,7 @@ async fn logging(
 		trace!("Waiting for new connection");
 		let mut socket = tokio::select! {
 			biased;
-			_ = stop_listening.notified() => {
+			_ = &mut stop_listening => {
 				debug!("Stopping instead of accepting another connection");
 				return Ok(());
 			}
@@ -326,7 +326,7 @@ async fn logging(
 		loop {
 			let bytes_read = tokio::select! {
 				biased;
-				_ = stop_listening.notified() => {
+				_ = &mut stop_listening => {
 					debug!("Stopping instead of reading any more data");
 					return Ok(());
 				}
@@ -400,10 +400,8 @@ impl Salt {
 		// 		tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 		// 	}
 		// };
-		let stop_listenning = Arc::new(tokio::sync::Notify::new());
-		let stop_listening2 = stop_listenning.clone();
+		let (stop, recv) = oneshot::channel();
 		let cmd = async move {
-			let stop_listening = stop_listening2;
 			let output = self
 				.cmd([
 					"-amount",
@@ -423,11 +421,12 @@ impl Salt {
 				])?
 				.run_and_wait_for_output()
 				.await?;
-			stop_listening.notify_one();
+			// ignores case where recv was dropped because never used
+			stop.send(()).ok();
 			Result::<_, Error>::Ok(output)
 		};
 
-		let logging = logging(listener, cb, &stop_listenning);
+		let logging = logging(listener, cb, recv);
 
 		let (output, log_res) = tokio::join!(cmd, logging);
 		if let Err(err) = log_res {

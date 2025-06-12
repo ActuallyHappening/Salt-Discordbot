@@ -189,8 +189,9 @@ impl Kill {
 				interaction.id,
 				&interaction.token,
 				&InteractionResponse {
-					kind: InteractionResponseType::DeferredChannelMessageWithSource,
-					data: None,
+					kind: InteractionResponseType::ChannelMessageWithSource,
+					data: Some(InteractionResponseDataBuilder::new()
+						.content("\"A very wise choice, sir, if I may say so. Very good. I'll just nip off and shoot myself.\" The salt discord bot turns and winks at you. \"Don't worry, sir. I'll be very humane.\"\n(adapted from Douglas Adams, Hitch Hiker's Guide to the Galaxy)").build()),
 				},
 			)
 			.await
