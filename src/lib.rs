@@ -22,7 +22,7 @@ pub(crate) mod errors {
 mod app_tracing;
 mod chains;
 
-pub use main::main;
+pub use main::start;
 mod main {
 	use crate::{
 		commands::admin_commands, common::GlobalState, env, prelude::*, ratelimits::RateLimits,
@@ -33,7 +33,7 @@ mod main {
 	use twilight_http::Client;
 	use twilight_model::id::{Id, marker::GuildMarker};
 
-	pub async fn main() -> Result<()> {
+	pub async fn start() -> Result<()> {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
 		let ratelimits = RateLimits::read()?;
@@ -100,8 +100,8 @@ mod main {
 			res = tokio::signal::ctrl_c() => {
 				debug!(?res, "Ctrl-C has been registered, shutting down");
 			},
-			_ = state.get().shutdown_now.notified() => {
-				debug!("Shutdown request has been listenned to, shutting down now");
+			_ = state.get().kill_now.notified() => {
+				debug!("Kill request has been listened to, shutting down now");
 			}
 		};
 

@@ -27,8 +27,8 @@ pub(super) enum AdminCommand {
 	#[command(name = "dump-logs")]
 	DumpLogs(DumpLogs),
 
-	#[command(name = "stop")]
-	Stop(Stop),
+	#[command(name = "kill")]
+	Kill(Kill),
 }
 
 impl AdminCommand {
@@ -82,8 +82,8 @@ impl AdminCommand {
 				cmd.handle(state, interaction).await?;
 				Ok(())
 			}
-			AdminCommand::Stop(cmd) => {
-				cmd.handle(state).await;
+			AdminCommand::Kill(cmd) => {
+				cmd.handle(state, interaction).await;
 				Ok(())
 			}
 		}
@@ -161,7 +161,8 @@ impl DumpLogs {
 		if !file_path.is_file() {
 			bail!("Logs file not found at {}", file_path);
 		}
-		let data = std::fs::read(&file_path)
+		let data = tokio::fs::read(&file_path)
+			.await
 			.wrap_err("Couldn't read log file")
 			.note(format!("Log file path: {}", file_path))?;
 		let attachment = Attachment {
@@ -176,11 +177,26 @@ impl DumpLogs {
 
 /// Stops the discordbot, hopefully taking it offline cleanly
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
-#[command(name = "stop")]
-pub(super) struct Stop;
+#[command(name = "kill")]
+pub(super) struct Kill;
 
-impl Stop {
-	pub async fn handle(&self, state: GlobalStateRef<'_>) {
-		state.shutdown_now.notify_waiters();
+impl Kill {
+	pub async fn handle(&self, state: GlobalStateRef<'_>, interaction: Interaction) {
+		if let Err(err) = state
+			.client
+			.interaction(interaction.application_id)
+			.create_response(
+				interaction.id,
+				&interaction.token,
+				&InteractionResponse {
+					kind: InteractionResponseType::DeferredChannelMessageWithSource,
+					data: None,
+				},
+			)
+			.await
+		{
+			error!(%err, "Couldn't send discord response before the kill admin command");
+		}
+		state.kill_now.notify_waiters();
 	}
 }

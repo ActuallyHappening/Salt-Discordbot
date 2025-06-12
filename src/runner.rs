@@ -32,7 +32,7 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 		tokio::spawn(async move {
 			tokio::select! {
 				biased;
-				_ = state.get().shutdown_now.notified() => {
+				_ = state.get().kill_now.notified() => {
 					warn!("Automatically cancelling a processing interaction because receiving a shutdown signal");
 					return;
 				}

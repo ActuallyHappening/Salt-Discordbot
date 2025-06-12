@@ -13,7 +13,7 @@ async fn main() -> color_eyre::Result<()> {
 		.expect("Couldn't install default crypto provider");
 
 	loop {
-		match salt_discordbot::main().await {
+		match salt_discordbot::start().await {
 			Ok(()) => {
 				// ctrlc, clean exit, actually exit
 				break;
