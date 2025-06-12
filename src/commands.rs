@@ -18,8 +18,10 @@ pub async fn handle_command(
 	match &*data.name {
 		// "orders-list" => orders::OrdersListCommand::handle(state.clone(), interaction, data).await,
 		"salt-faucet" => faucet::FaucetCommand::handle(state.get(), interaction, data).await,
+		"admin" => admin::AdminCommand::handle(state.get(), interaction, data).await,
 		name => bail!("unknown command: {}", name),
 	}
 }
 
 mod faucet;
+mod admin;

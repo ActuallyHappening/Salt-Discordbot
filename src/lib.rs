@@ -31,7 +31,7 @@ mod main {
 		let env = env::Env::default()?;
 		let token = env.bot_token.clone();
 		let ratelimits = RateLimits::read()?;
-		
+
 		info!("Starting discordbot for salt public addresss {}", env.faucet_testnet_salt_account_address);
 
 		// Initialize Twilight HTTP client and gateway configuration.
@@ -187,49 +187,4 @@ mod common {
 
 pub mod env;
 mod ratelimits;
-mod per_user_spam_filter {
-	use std::{collections::HashSet, sync::Mutex};
-
-	use crate::prelude::*;
-
-	#[derive(Default)]
-	pub struct PerUserSpamFilter(Mutex<HashSet<u64>>);
-
-	impl PerUserSpamFilter {
-		pub fn engage(&self, discord_id: u64) -> Result<Guard<'_>, PerUserErr> {
-			let mut guard = self.0.lock().or_poisoned();
-			if guard.contains(&discord_id) {
-				Err(PerUserErr)
-			} else {
-				guard.insert(discord_id);
-				Ok(Guard {
-					mutex: self,
-					discord_id,
-				})
-			}
-		}
-	}
-
-	#[derive(Debug, thiserror::Error)]
-	#[error("Slow down there! One slash command per user at a time please")]
-	pub struct PerUserErr;
-
-	pub struct Guard<'mutex> {
-		mutex: &'mutex PerUserSpamFilter,
-		discord_id: u64,
-	}
-
-	impl<'mutex> Drop for Guard<'mutex> {
-		fn drop(&mut self) {
-			match self.mutex.0.lock() {
-				Ok(mut lock) => {
-					debug!("Removing user from spam filter becuase the guard dropped");
-					lock.remove(&self.discord_id);
-				}
-				Err(_) => {
-					error!(?self.discord_id, "Failed to unengage per user spam filter");
-				}
-			}
-		}
-	}
-}
+mod per_user_spam_filter;

@@ -11,7 +11,7 @@ pub mod abi {
 }
 
 /// Here for completeness not usability
-pub mod other {
+pub mod other_abi {
 	pub mod factory {
 		use alloy::sol;
 		sol!(
@@ -32,3 +32,5 @@ pub mod other {
 		);
 	}
 }
+
+pub mod rpc;
