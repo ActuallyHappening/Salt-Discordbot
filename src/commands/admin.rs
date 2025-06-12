@@ -74,7 +74,7 @@ impl AdminCommand {
 				Ok(())
 			}
 			AdminCommand::DumpLogs(cmd) => {
-				cmd.handle(state, interaction).await;
+				cmd.handle(state, interaction).await?;
 				Ok(())
 			}
 		}
