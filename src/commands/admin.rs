@@ -1,10 +1,12 @@
+use camino::Utf8PathBuf;
 use color_eyre::eyre::Context as _;
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
 	application::interaction::{Interaction, application_command::CommandData},
-	http::interaction::InteractionResponseType,
+	http::interaction::{InteractionResponse, InteractionResponseType},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
+use crate::prelude::*;
 
 use crate::common::GlobalStateRef;
 
@@ -16,6 +18,9 @@ pub(super) enum AdminCommand {
 
 	#[command(name = "purge-user-dedupe")]
 	PurgeUserDedupe(PurgeUserDedupe),
+
+	#[command(name = "dump-logs")]
+	DumpLogs(DumpLogs),
 }
 
 impl AdminCommand {
@@ -65,6 +70,10 @@ impl AdminCommand {
 					.await?;
 				Ok(())
 			}
+			AdminCommand::DumpLogs(cmd) => {
+				cmd.handle(state, interaction).await;
+				Ok(())
+			}
 		}
 	}
 }
@@ -79,3 +88,58 @@ pub(super) struct DumpUserDedupe;
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
 #[command(name = "purge-user-dedupe")]
 pub(super) struct PurgeUserDedupe;
+
+/// Dumps today's logs as a file
+#[derive(Debug, Clone, CommandModel, CreateCommand)]
+#[command(name = "dump-logs")]
+pub(super) struct DumpLogs;
+
+impl DumpLogs {
+	pub async fn handle(
+		&self,
+		state: GlobalStateRef<'_>,
+		interaction: Interaction,
+	) -> color_eyre::Result<()> {
+		state
+			.client
+			.interaction(interaction.application_id)
+			.create_response(
+				interaction.id,
+				&interaction.token,
+				&InteractionResponse {
+					kind: InteractionResponseType::DeferredChannelMessageWithSource,
+					data: None,
+				},
+			)
+			.await?;
+
+		match self.get_file().await {
+			Ok(file) => {
+				todo!("Send file");
+				Ok(())
+			}
+			Err(err) => {
+				error!(%err, "Internal error while dumping logs");
+				state
+					.client
+					.interaction(interaction.application_id)
+					.create_followup(&interaction.token)
+					.content(&format!(
+						"An internal error occurred while dumping the logs: {}",
+						err
+					))
+					.await?;
+				Ok(())
+			}
+		}
+	}
+
+	async fn get_file(
+		&self,
+	) -> color_eyre::Result<Utf8PathBuf> {
+		let now = time::OffsetDateTime::now_utc();
+		let format = time::macros::format_description!("rust-discordbot.json.[year]-[month]-[day]");
+		let file_name = now.format(&format);
+		todo!()
+	}
+}
