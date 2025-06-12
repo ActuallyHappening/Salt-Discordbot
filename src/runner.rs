@@ -1,16 +1,24 @@
-use std::sync::{atomic::{AtomicBool, Ordering}, LazyLock};
+use std::sync::{
+	LazyLock,
+	atomic::{AtomicBool, Ordering},
+};
 
 use crate::{common::GlobalState, prelude::*};
 use tokio::sync::Notify;
 use twilight_gateway::{Event, EventTypeFlags, Shard, StreamExt as _};
 use twilight_model::application::interaction::InteractionData;
 
-pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
-
 pub async fn runner(state: GlobalState, mut shard: Shard) {
 	while let Some(item) = shard.next_event(EventTypeFlags::all()).await {
 		let event = match item {
-			Ok(Event::GatewayClose(_)) if SHUTDOWN.load(Ordering::Relaxed) => break,
+			Ok(Event::GatewayClose(reason)) => {
+				warn!(
+					?reason,
+					"Automatically closing shard because receiving a GatewayClose event {}",
+					shard.id()
+				);
+				break;
+			}
 			Ok(event) => event,
 			Err(error) => {
 				tracing::warn!(?error, "error while receiving event");
@@ -21,10 +29,23 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 		// Process Discord events
 		tracing::info!(kind = ?event.kind(), shard = ?shard.id().number(), "received event");
 		let state = state.clone();
-		tokio::spawn(tokio::time::timeout(
-			std::time::Duration::from_secs(60 * 2),
-			async move { process_interactions(state, event).await },
-		));
+		tokio::spawn(async move {
+			tokio::select! {
+				biased;
+				_ = state.get().shutdown_now.notified() => {
+					warn!("Automatically cancelling a processing interaction because receiving a shutdown signal");
+					return;
+				}
+				res = tokio::time::timeout(
+					std::time::Duration::from_secs(60 * 2),
+					process_interactions(state.clone(), event),
+				) => {
+					if let Err(err) = res {
+						warn!(?err, "Timing out a processing interaction");
+					}
+				}
+			};
+		});
 	}
 }
 

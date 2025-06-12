@@ -89,17 +89,21 @@ mod main {
 		let mut senders = Vec::with_capacity(shard_len);
 		// let mut tasks = Vec::with_capacity(shard_len);
 		let mut tasks = tokio::task::JoinSet::new();
-		let shutdown_now = Notify::new();
-		let state = GlobalState::new(client, env, ratelimits)?;
+		let state = GlobalState::new(client, env, ratelimits, Notify::new())?;
 
 		for shard in shards {
 			senders.push(shard.sender());
 			tasks.spawn(crate::runner::runner(state.clone(), shard));
 		}
 
-		tokio::signal::ctrl_c().await?;
-		debug!("Ctrl-C has been registered, shutting down");
-		crate::runner::SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+		tokio::select! {
+			res = tokio::signal::ctrl_c() => {
+				debug!(?res, "Ctrl-C has been registered, shutting down");
+			},
+			_ = state.get().shutdown_now.notified() => {
+				debug!("Shutdown request has been listenned to, shutting down now");
+			}
+		};
 
 		for sender in senders {
 			// Ignore error if shard's already shutdown.

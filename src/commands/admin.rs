@@ -83,7 +83,7 @@ impl AdminCommand {
 				Ok(())
 			}
 			AdminCommand::Stop(cmd) => {
-				cmd.handle().await;
+				cmd.handle(state).await;
 				Ok(())
 			}
 		}
@@ -180,7 +180,7 @@ impl DumpLogs {
 pub(super) struct Stop;
 
 impl Stop {
-	pub async fn handle(&self) {
-		crate::runner::SHUTDOWN.store(true, Ordering::Relaxed);
+	pub async fn handle(&self, state: GlobalStateRef<'_>) {
+		state.shutdown_now.notify_waiters();
 	}
 }
