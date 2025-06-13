@@ -94,6 +94,7 @@ pub async fn start(keep_restarting: Arc<AtomicBool>) -> Result<()> {
 		tasks.spawn(crate::runner::runner(state.clone(), shard));
 	}
 
+	// TODO stop when no shards are left receiving
 	tokio::select! {
 		res = tokio::signal::ctrl_c() => {
 			debug!(?res, "Ctrl-C has been registered, shutting down");
