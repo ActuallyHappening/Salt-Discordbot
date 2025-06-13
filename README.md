@@ -10,6 +10,9 @@ cargo build --release
 scp target/release/salt-discordbot salt:///home/ah/Desktop/rust-discordbot
 ```
 
+## Killing previously running session
+To stop the bot from running, try running the `/admin kill` discord slash command in the test server. If that doesn't kill it, you can just Ctrl+C in the running zellij session below
+
 ## Running
 I currently use `zellij` because it is simple, to use run:
 ```nu
@@ -29,6 +32,9 @@ cd /home/ah/Desktop
 # runs the discordbot binary
 ./rust-discordbot
 ```
+
+After you have a running session you want to keep running in the background, **DON'T CLOSE YOUR TERMINAL**, instead press Control+O then D, which detaches
+the session and will keep it running in the background. Then you can safely close your terminal session and zellij will keep running in the background.
 
 ## Private APIs
 A private crate exists as a git submodule in this repo.
