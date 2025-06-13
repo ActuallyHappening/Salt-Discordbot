@@ -12,5 +12,6 @@
 !Cargo.toml
 !env.sample.toml
 !README.md
+!docs
 !TODO.md
 !rustfmt.toml
