@@ -12,12 +12,21 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 	while let Some(item) = shard.next_event(EventTypeFlags::all()).await {
 		let event = match item {
 			Ok(Event::GatewayClose(reason)) => {
-				warn!(
-					?reason,
-					"Automatically closing shard because receiving a GatewayClose event {}",
-					shard.id()
-				);
-				break;
+				if state.get().shutting_down.load(Ordering::Acquire) {
+					warn!(
+						?reason,
+						"Automatically closing shard because receiving a GatewayClose event {}",
+						shard.id()
+					);
+					break;
+				} else {
+					warn!(
+						?reason,
+						"Received a GatewayClose event, but not shutting down: {}",
+						shard.id()
+					);
+					continue;
+				}
 			}
 			Ok(event) => event,
 			Err(error) => {

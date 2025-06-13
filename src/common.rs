@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{atomic::AtomicBool, Mutex};
 
 use tokio::sync::Notify;
 use twilight_http::Client;
@@ -16,6 +16,7 @@ pub struct GlobalState {
 	private_apis: salt_private_apis::Client,
 	per_user_spam_filters: Arc<PerUserSpamFilter>,
 	kill_now: Arc<Notify>,
+	shutting_down: Arc<AtomicBool>,
 }
 
 #[derive(Clone, Copy)]
@@ -26,17 +27,19 @@ pub struct GlobalStateRef<'a> {
 	pub private_apis: &'a salt_private_apis::Client,
 	pub per_user_spam_filters: &'a PerUserSpamFilter,
 	pub kill_now: &'a Notify,
+	pub shutting_down: &'a AtomicBool,
 }
 
 impl GlobalState {
-	pub fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits, shutdown_now: Notify) -> Result<Self> {
+	pub fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits, kill_now: Notify, shutting_down: Arc<AtomicBool>) -> Result<Self> {
 		Ok(GlobalState {
 			client,
 			env: Arc::new(env),
 			ratelimits: Arc::new(Mutex::new(ratelimits)),
 			private_apis: salt_private_apis::Client::new(),
 			per_user_spam_filters: Arc::new(PerUserSpamFilter::default()),
-			kill_now: Arc::new(shutdown_now),
+			kill_now: Arc::new(kill_now),
+			shutting_down,
 		})
 	}
 
@@ -48,6 +51,7 @@ impl GlobalState {
 			private_apis: &self.private_apis,
 			per_user_spam_filters: &self.per_user_spam_filters,
 			kill_now: &self.kill_now,
+			shutting_down: &self.shutting_down,
 		}
 	}
 }
@@ -61,6 +65,7 @@ impl<'a> GlobalStateRef<'a> {
 			private_apis: self.private_apis,
 			per_user_spam_filters: self.per_user_spam_filters,
 			kill_now: self.kill_now,
+			shutting_down: self.shutting_down,
 		}
 	}
 }

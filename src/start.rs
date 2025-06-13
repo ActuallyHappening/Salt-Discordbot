@@ -11,11 +11,12 @@ use twilight_model::id::{Id, marker::GuildMarker};
 
 pub async fn main() {
 	let keep_restarting = Arc::new(AtomicBool::new(true));
+	let shutting_down = Arc::new(AtomicBool::new(false));
 	loop {
 		if !keep_restarting.load(Ordering::Acquire) {
 			return;
 		}
-		match start(keep_restarting.clone()).await {
+		match start(keep_restarting.clone(), shutting_down.clone()).await {
 			Ok(()) => {
 				// ctrlc, clean exit, actually exit
 				break;
@@ -31,7 +32,7 @@ pub async fn main() {
 	}
 }
 
-pub async fn start(keep_restarting: Arc<AtomicBool>) -> Result<()> {
+pub async fn start(keep_restarting: Arc<AtomicBool>, shutting_down: Arc<AtomicBool>) -> Result<()> {
 	let env = env::Env::default()?;
 	let token = env.bot_token.clone();
 	let ratelimits = RateLimits::read()?;
@@ -87,7 +88,7 @@ pub async fn start(keep_restarting: Arc<AtomicBool>) -> Result<()> {
 	let mut senders = Vec::with_capacity(shard_len);
 	// let mut tasks = Vec::with_capacity(shard_len);
 	let mut tasks = tokio::task::JoinSet::new();
-	let state = GlobalState::new(client, env, ratelimits, Notify::new())?;
+	let state = GlobalState::new(client, env, ratelimits, Notify::new(), shutting_down.clone())?;
 
 	for shard in shards {
 		senders.push(shard.sender());
@@ -104,6 +105,7 @@ pub async fn start(keep_restarting: Arc<AtomicBool>) -> Result<()> {
 			keep_restarting.store(false, Ordering::SeqCst);
 		}
 	};
+	shutting_down.store(true, Ordering::Release);
 
 	for sender in senders {
 		// Ignore error if shard's already shutdown.
