@@ -26,7 +26,7 @@ I currently use `zellij` because it is simple, to use on the server run:
 # (ssh salt) this is running on the server
 /home/ah/Desktop/zellij
 ```
-Then, press Controll+O then W, which will open the session manager, which looks like this:
+Then, press Control+O then W, which will open the session manager, which looks like this:
 
 ![zellij session manager](./docs/zellij-session-manager.png)
 
