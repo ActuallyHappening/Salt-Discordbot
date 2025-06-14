@@ -2,6 +2,7 @@ mod tracing;
 
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
+use alloy_primitives::utils::parse_ether;
 use color_eyre::eyre::Context as _;
 use salt_sdk::{GasEstimator, LiveLogging, Salt, TransactionInfo};
 
@@ -25,14 +26,15 @@ async fn main() -> color_eyre::Result<()> {
 	// let vault_address = format!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
 	// let recipient_address = format!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
 	let amount = rl.readline("Amount to transfer: ")?;
-	let vault_address = rl.readline("Vault address: ")?;
-	let recipient_address = rl.readline("Recipient address: ")?;
+	let amount = parse_ether(&amount)?;
+	let vault_address = rl.readline("Vault address: ")?.parse()?;
+	let recipient_address = rl.readline("Recipient address: ")?.parse()?;
 
 	let transaction = salt
 		.transaction(TransactionInfo {
-			amount: &amount,
-			vault_address: &vault_address,
-			recipient_address: &recipient_address,
+			amount,
+			vault_address,
+			recipient_address,
 			data: "",
 			logging: LiveLogging::from_cb(|msg| info!(%msg)),
 			gas: GasEstimator::Default,

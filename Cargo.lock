@@ -3692,6 +3692,7 @@ dependencies = [
 name = "salt-sdk"
 version = "0.0.0-alpha1"
 dependencies = [
+ "alloy-primitives",
  "camino",
  "color-eyre",
  "dirs",

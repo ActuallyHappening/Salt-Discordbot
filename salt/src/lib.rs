@@ -10,6 +10,10 @@ pub mod prelude {
 
 use std::{net::SocketAddrV4, process::ExitStatus};
 
+use alloy_primitives::{
+	Address, U256,
+	utils::{ParseUnits, Unit, UnitsError, parse_ether},
+};
 use camino::FromPathBufError;
 use cli::{AsyncCommand, Output};
 use color_eyre::{
@@ -257,9 +261,9 @@ impl From<tokio::sync::mpsc::Sender<String>> for LiveLogging {
 }
 
 pub struct TransactionInfo<'a> {
-	pub amount: &'a str,
-	pub vault_address: &'a str,
-	pub recipient_address: &'a str,
+	pub amount: U256,
+	pub vault_address: Address,
+	pub recipient_address: Address,
 	pub data: &'a str,
 	pub gas: GasEstimator,
 	pub logging: LiveLogging,
@@ -301,7 +305,7 @@ mod tests {
 async fn logging(
 	listener: tokio::net::TcpListener,
 	mut logging: LiveLogging,
-	mut stop_listening: oneshot::Receiver<()>
+	mut stop_listening: oneshot::Receiver<()>,
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
@@ -405,11 +409,11 @@ impl Salt {
 			let output = self
 				.cmd([
 					"-amount",
-					amount,
+					&ParseUnits::from(amount).format_units(Unit::ETHER),
 					"-vault-address",
-					vault_address,
+					&vault_address.to_string(),
 					"-recipient-address",
-					recipient_address,
+					&recipient_address.to_string(),
 					"-data",
 					data,
 					"-logging-port",
