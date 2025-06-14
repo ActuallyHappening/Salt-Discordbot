@@ -1,14 +1,14 @@
 use std::sync::Mutex;
 
-use crate::{chains, chains::SupportedChain, prelude::*, ratelimits::Key};
+use crate::{chains, chains::SupportedChain, prelude::*, ratelimits::KeyBuilder};
 use chains::FaucetBlockchain as _;
 use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig, TransactionInfo};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
-	application::interaction::{Interaction, application_command::CommandData},
+	application::interaction::{application_command::CommandData, Interaction},
 	http::interaction::{InteractionResponse, InteractionResponseType},
-	id::Id,
+	id::{marker::UserMarker, Id},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -24,13 +24,17 @@ pub(super) enum FaucetCommand {
 	SomniaShannon(chains::SomniaShannon),
 
 	#[command(name = "sepolia-eth")]
-	SepoliaEtherium(chains::SepoliaEtherium),
+	SepoliaEtherium(chains::SepoliaEthereum),
 
 	#[command(name = "sepolia-arb-eth")]
 	SepoliaArbitrum(chains::SepoliaArbitrum),
 
 	#[command(name = "polygon-amoy")]
 	PolygonAmoy(chains::PolygonAmoy),
+
+	#[command(name = "somnia-shannon-ping")]
+	PingSomniaShannon(erc20::SomniaShannonPing),
+
 	// #[command(name = "check")]
 	// Check(Check),
 
@@ -39,6 +43,7 @@ pub(super) enum FaucetCommand {
 }
 
 mod check;
+mod erc20;
 
 // /// Check all your ratelimits by chain
 // #[derive(Debug, Clone, CommandModel, CreateCommand)]
@@ -49,7 +54,7 @@ mod check;
 // }
 
 pub struct DiscordInfo {
-	discord_id: u64,
+	discord_id: Id<UserMarker>,
 	has_expanded_limits: bool,
 }
 
@@ -97,7 +102,7 @@ async fn discord_info(
 	};
 	let expanded_limits_id = Id::new(1364832034677198949);
 	let has_expanded_limits = member.roles.contains(&expanded_limits_id);
-	let discord_id = user.id.get();
+	let discord_id = user.id;
 	Ok(DiscordInfo {
 		discord_id,
 		has_expanded_limits,
@@ -165,6 +170,9 @@ impl FaucetCommand {
 						.handle(state, interaction, discord_info)
 						.await
 				}
+				FaucetCommand::PingSomniaShannon(token) => {
+					token.handle(state, interaction, discord_info).await
+				}
 			}
 		};
 		// global internal error handler
@@ -198,14 +206,14 @@ impl SupportedChain {
 			chain_name,
 		} = self.info(state.env);
 		let amount = self.faucet_amount();
-		let address = self.address();
+		let address = self.address_str();
 		let DiscordInfo {
 			discord_id,
 			has_expanded_limits,
 		} = discord_info;
 
 		// check ratelimiting if not expanded limits
-		let ratelimit_key = Key {
+		let ratelimit_key = KeyBuilder {
 			address: address.clone().into_boxed_str(),
 			discord_id: discord_id.to_string().into_boxed_str(),
 			chain_id,
@@ -232,7 +240,7 @@ impl SupportedChain {
 				return Ok(());
 			}
 		} else {
-			info!("This person has expanded limits");
+			info!(discord_id, "This person has expanded limits");
 		}
 
 		// do business logic checks

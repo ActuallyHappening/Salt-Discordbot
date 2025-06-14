@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use std::time::Duration;
+use alloy::primitives::Address;
 use time::OffsetDateTime;
+use twilight_model::id::marker::UserMarker;
+use twilight_model::id::Id;
 
 use crate::prelude::*;
 
@@ -11,8 +14,8 @@ pub struct RateLimits(HashMap<u64, ChainLimits>);
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Default)]
 struct ChainLimits {
-	address: HashMap<Box<str>, Vec<OffsetDateTime>>,
-	discord_id: HashMap<Box<str>, Vec<OffsetDateTime>>,
+	address: HashMap<Address, Vec<OffsetDateTime>>,
+	discord_id: HashMap<Id<UserMarker>, Vec<OffsetDateTime>>,
 }
 
 #[test]
@@ -29,11 +32,29 @@ fn chain_limits_serde() {
 	RateLimits::read().expect("to deserialize");
 }
 
-pub struct Key {
-	pub address: Box<str>,
-	pub discord_id: Box<str>,
+pub struct KeyBuilder<'a> {
+	pub address: Address,
+	pub discord_id: Id<UserMarker>,
 	pub chain_id: u64,
 	pub chain_name: String,
+}
+
+impl<'a> KeyBuilder<'a> {
+	pub fn build(&self) -> Key {
+		Key {
+			address: String::from(self.address).to_lowercase().into_boxed_str(),
+			discord_id: self.discord_id,
+			chain_id: self.chain_id,
+			chain_name: self.chain_name,
+		}
+	}
+}
+
+pub struct Key {
+	address: Address,
+	discord_id: Id<UserMarker>,
+	chain_id: u64,
+	chain_name: String,
 }
 
 /// Doesn't use u64 as key
@@ -76,7 +97,7 @@ mod ser {
 }
 
 impl RateLimits {
-	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
+	pub fn check(&mut self, key: &KeyBuilder) -> Result<(), RateLimitErr> {
 		if !self.0.contains_key(&key.chain_id) {
 			self.0.insert(key.chain_id, ChainLimits::default());
 		}
@@ -97,7 +118,7 @@ impl RateLimits {
 		ret
 	}
 
-	pub fn register(&mut self, key: &Key) -> Result<()> {
+	pub fn register(&mut self, key: &KeyBuilder) -> Result<()> {
 		if !self.0.contains_key(&key.chain_id) {
 			self.0.insert(key.chain_id, ChainLimits::default());
 		}
@@ -145,11 +166,10 @@ impl ChainLimits {
 	pub fn check(
 		&mut self,
 		address: &str,
-		discord_id: &str,
+		discord_id: Id<UserMarker>,
 		chain_name: &str,
 	) -> Result<(), RateLimitErr> {
 		let address: Box<str> = address.to_owned().into_boxed_str();
-		let discord_id = discord_id.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
 
 		if !self.address.contains_key(&address) {

@@ -17,6 +17,7 @@ salt-sdk = { path = "salt" }
 [dependencies]
 alloy = { version = "1.0.9", features = ["sol-types"] }
 camino = "1.1.9"
+clap = { version = "4.5.40", features = ["derive"] }
 color-eyre = "0.6.3"
 hex = { version = "0.3.0", package = "hex-conservative" }
 or_poisoned = "0.1.0"

@@ -1,12 +1,14 @@
 use std::{collections::HashSet, sync::Mutex};
 
+use twilight_model::id::{marker::UserMarker, Id};
+
 use crate::prelude::*;
 
 #[derive(Default)]
-pub struct PerUserSpamFilter(Mutex<HashSet<u64>>);
+pub struct PerUserSpamFilter(Mutex<HashSet<Id<UserMarker>>>);
 
 impl PerUserSpamFilter {
-	pub fn engage(&self, discord_id: u64) -> Result<Guard<'_>, PerUserErr> {
+	pub fn engage(&self, discord_id: Id<UserMarker>) -> Result<Guard<'_>, PerUserErr> {
 		let mut guard = self.0.lock().or_poisoned();
 		if guard.contains(&discord_id) {
 			Err(PerUserErr)
@@ -20,7 +22,7 @@ impl PerUserSpamFilter {
 		}
 	}
 
-	fn unlock(&self, discord_id: u64) {
+	fn unlock(&self, discord_id: Id<UserMarker>) {
 		match self.0.lock() {
 			Ok(mut lock) => {
 				debug!(?discord_id, "Removing user from spam filter");
@@ -58,7 +60,7 @@ pub struct PerUserErr;
 
 pub struct Guard<'mutex> {
 	mutex: &'mutex PerUserSpamFilter,
-	discord_id: u64,
+	discord_id: Id<UserMarker>,
 }
 
 impl<'mutex> Drop for Guard<'mutex> {
