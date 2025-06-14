@@ -12,7 +12,7 @@ pub trait ExplorableBlockchain: BlockchainListing + Sized {
 
 /// Assumes base + /tx + /:txhash to construct block explorer URL
 pub struct GenericBlockExplorer<Chain> {
-	_phantom: Chain,
+	_phantom: PhantomData<Chain>,
 	pub base: Url,
 }
 
@@ -37,6 +37,17 @@ impl<Chain> GenericBlockExplorer<Chain> {
 		GenericBlockExplorer {
 			_phantom: PhantomData,
 			base,
+		}
+	}
+
+	pub fn adapt<NewChain>(self) -> GenericBlockExplorer<NewChain>
+	where
+		Chain: BlockchainListing,
+		NewChain: BlockchainListing,
+	{
+		GenericBlockExplorer {
+			_phantom: PhantomData,
+			base: self.base,
 		}
 	}
 }

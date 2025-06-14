@@ -69,6 +69,25 @@ impl BlockchainListing for SupportedChain {
 	}
 }
 
+impl ExplorableBlockchain for SupportedChain {
+	type Explorer = GenericBlockExplorer<SupportedChain>;
+
+	fn block_explorer(&self) -> Self::Explorer {
+		match self {
+			SupportedChain::SomniaShannon(chain) => chain.block_explorer().adapt(),
+			SupportedChain::PolygonAmoy(chain) => chain.block_explorer().adapt(),
+			SupportedChain::SepoliaArbitrum(chain) => chain.block_explorer().adapt(),
+			SupportedChain::SepoliaEtherium(chain) => chain.block_explorer().adapt(),
+		}
+	}
+}
+
+impl BlockchainExplorer<SupportedChain> for GenericBlockExplorer<SupportedChain> {
+	fn base(&self) -> Url {
+		self.base.clone()
+	}
+}
+
 impl NativeFaucet for SupportedChain {
 	fn rpc_url(&self, env: &Env) -> Url {
 		match self {
@@ -214,6 +233,19 @@ impl BlockchainListing for SepoliaArbitrum {
 	}
 }
 
+impl ExplorableBlockchain for SepoliaArbitrum {
+	type Explorer = GenericBlockExplorer<Self>;
+	fn block_explorer(&self) -> Self::Explorer {
+		GenericBlockExplorer::new("https://sepolia.etherscan.io".parse().unwrap())
+	}
+}
+
+impl BlockchainExplorer<SepoliaArbitrum> for GenericBlockExplorer<SepoliaArbitrum> {
+	fn base(&self) -> Url {
+		self.base.clone()
+	}
+}
+
 impl NativeFaucet for SepoliaArbitrum {
 	fn rpc_url(&self, env: &Env) -> Url {
 		env.sepolia_arbitrum_rpc_endpoint.to_owned()
@@ -244,6 +276,19 @@ impl BlockchainListing for PolygonAmoy {
 	}
 	fn native_token_name(&self) -> &'static str {
 		"AMOY"
+	}
+}
+
+impl ExplorableBlockchain for PolygonAmoy {
+	type Explorer = GenericBlockExplorer<Self>;
+	fn block_explorer(&self) -> Self::Explorer {
+		GenericBlockExplorer::new("https://amoy.polygonscan.com/".parse().unwrap())
+	}
+}
+
+impl BlockchainExplorer<PolygonAmoy> for GenericBlockExplorer<PolygonAmoy> {
+	fn base(&self) -> Url {
+		self.base.clone()
 	}
 }
 
