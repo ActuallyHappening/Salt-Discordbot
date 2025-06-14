@@ -1,8 +1,19 @@
-use alloy::{hex::FromHexError, primitives::{utils::parse_ether, Address, U256}};
+use std::{borrow::Borrow, marker::PhantomData};
+
+use alloy::{
+	hex::FromHexError,
+	primitives::{Address, B256, U256, utils::parse_ether},
+};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use url::Url;
 
-use crate::{env::Env, prelude::*};
+use crate::{
+	chains::explorer::{BlockchainExplorer, ExplorableBlockchain, GenericBlockExplorer},
+	env::Env,
+	prelude::*,
+};
+
+mod explorer;
 
 pub trait BlockchainListing {
 	fn chain_id(&self) -> u64;
@@ -10,7 +21,7 @@ pub trait BlockchainListing {
 	fn native_token_name(&self) -> &'static str;
 }
 
-pub(super) trait FaucetBlockchain: BlockchainListing {
+pub(super) trait NativeFaucet: BlockchainListing + ExplorableBlockchain {
 	fn rpc_url(&self, env: &Env) -> Url;
 
 	fn faucet_amount(&self) -> U256;
@@ -58,7 +69,7 @@ impl BlockchainListing for SupportedChain {
 	}
 }
 
-impl FaucetBlockchain for SupportedChain {
+impl NativeFaucet for SupportedChain {
 	fn rpc_url(&self, env: &Env) -> Url {
 		match self {
 			SupportedChain::SomniaShannon(chain) => chain.rpc_url(env),
@@ -109,7 +120,20 @@ impl BlockchainListing for SomniaShannon {
 	}
 }
 
-impl FaucetBlockchain for SomniaShannon {
+impl ExplorableBlockchain for SomniaShannon {
+	type Explorer = GenericBlockExplorer<Self>;
+	fn block_explorer(&self) -> Self::Explorer {
+		GenericBlockExplorer::new("https://shannon-explorer.somnia.network/".parse().unwrap())
+	}
+}
+
+impl BlockchainExplorer<SomniaShannon> for GenericBlockExplorer<SomniaShannon> {
+	fn base(&self) -> Url {
+		self.base.clone()
+	}
+}
+
+impl NativeFaucet for SomniaShannon {
 	fn rpc_url(&self, env: &Env) -> Url {
 		env.somnia_shannon_rpc_endpoint.to_owned()
 	}
@@ -143,7 +167,20 @@ impl BlockchainListing for SepoliaEthereum {
 	}
 }
 
-impl FaucetBlockchain for SepoliaEthereum {
+impl ExplorableBlockchain for SepoliaEthereum {
+	type Explorer = GenericBlockExplorer<Self>;
+	fn block_explorer(&self) -> Self::Explorer {
+		GenericBlockExplorer::new("https://sepolia.etherscan.io".parse().unwrap())
+	}
+}
+
+impl BlockchainExplorer<SepoliaEthereum> for GenericBlockExplorer<SepoliaEthereum> {
+	fn base(&self) -> Url {
+		self.base.clone()
+	}
+}
+
+impl NativeFaucet for SepoliaEthereum {
 	fn rpc_url(&self, env: &Env) -> Url {
 		env.sepolia_ethereum_rpc_endpoint.to_owned()
 	}
@@ -177,7 +214,7 @@ impl BlockchainListing for SepoliaArbitrum {
 	}
 }
 
-impl FaucetBlockchain for SepoliaArbitrum {
+impl NativeFaucet for SepoliaArbitrum {
 	fn rpc_url(&self, env: &Env) -> Url {
 		env.sepolia_arbitrum_rpc_endpoint.to_owned()
 	}
@@ -210,7 +247,7 @@ impl BlockchainListing for PolygonAmoy {
 	}
 }
 
-impl FaucetBlockchain for PolygonAmoy {
+impl NativeFaucet for PolygonAmoy {
 	fn rpc_url(&self, env: &Env) -> Url {
 		env.polygon_amoy_rpc_endpoint.to_owned()
 	}

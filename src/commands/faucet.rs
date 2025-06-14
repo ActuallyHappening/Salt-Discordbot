@@ -6,7 +6,7 @@ use crate::{
 	ratelimits::Key,
 };
 use alloy::primitives::utils::{ParseUnits, Unit};
-use chains::FaucetBlockchain as _;
+use chains::NativeFaucet as _;
 use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig, TransactionInfo};
 use twilight_interactions::command::{CommandModel, CreateCommand};
