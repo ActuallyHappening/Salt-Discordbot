@@ -8,11 +8,11 @@ use twilight_model::id::marker::UserMarker;
 
 use crate::prelude::*;
 
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(try_from = "ser::RateLimits", into = "ser::RateLimits")]
 pub struct RateLimits(HashMap<u64, ChainLimits>);
 
-#[derive(serde::Deserialize, serde::Serialize, Clone, Default)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Default)]
 struct ChainLimits {
 	address: HashMap<Address, Vec<OffsetDateTime>>,
 	discord_id: HashMap<Id<UserMarker>, Vec<OffsetDateTime>>,
@@ -86,7 +86,7 @@ impl RateLimits {
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
-			.check(key.address, key.discord_id, &key.chain_name)
+			.check(&OffsetDateTime::now_utc(), key.address, key.discord_id, &key.chain_name)
 	}
 
 	fn describe(&mut self, discord_id: Id<UserMarker>) -> String {
@@ -108,6 +108,14 @@ impl RateLimits {
 			.get_mut(&key.chain_id)
 			.unwrap()
 			.register(key.address, key.discord_id);
+
+		self.save()?;
+		Ok(())
+	}
+
+	pub fn clear(&mut self) -> Result<()> {
+		self.0.clear();
+		info!(?self, "Purging all ratelimits");
 
 		self.save()?;
 		Ok(())
@@ -147,12 +155,11 @@ impl RateLimits {
 impl ChainLimits {
 	pub fn check(
 		&mut self,
+		now: &OffsetDateTime,
 		address: Address,
 		discord_id: Id<UserMarker>,
 		chain_name: &'static str,
 	) -> Result<(), RateLimitErr> {
-		let now = OffsetDateTime::now_utc();
-
 		if !self.address.contains_key(&address) {
 			self.address.insert(address.clone(), Vec::new());
 		}
@@ -201,7 +208,7 @@ impl ChainLimits {
 				.collect::<Vec<String>>();
 			ret.push_str(&format!(
 				"Address (ratelimited: {:?}): {:?}",
-				self.check(address, discord_id, "").is_ok(),
+				self.check(now, address, discord_id, "").is_ok(),
 				records
 			));
 		}

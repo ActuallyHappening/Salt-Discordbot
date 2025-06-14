@@ -24,6 +24,9 @@ pub(super) enum AdminCommand {
 	#[command(name = "purge-user-dedupe")]
 	PurgeUserDedupe(PurgeUserDedupe),
 
+	#[command(name = "purse-user-ratelimits")]
+	PurgeUserRatelimits(PurgeUserRatelimits),
+
 	#[command(name = "dump-logs")]
 	DumpLogs(DumpLogs),
 
@@ -78,6 +81,10 @@ impl AdminCommand {
 					.await?;
 				Ok(())
 			}
+			AdminCommand::PurgeUserRatelimits(cmd) => {
+				cmd.handle(state, interaction).await?;
+				Ok(())
+			}
 			AdminCommand::DumpLogs(cmd) => {
 				cmd.handle(state, interaction).await?;
 				Ok(())
@@ -100,6 +107,12 @@ pub(super) struct DumpUserDedupe;
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
 #[command(name = "purge-user-dedupe")]
 pub(super) struct PurgeUserDedupe;
+
+/// Purse all user ratelimit data, which will allow people to request slightly more
+/// than normal
+#[derive(Debug, Clone, CommandModel, CreateCommand)]
+#[command(name = "purge-user-ratelimits")]
+pub(super) struct PurgeUserRatelimits;
 
 /// Dumps today's logs as a file
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
@@ -199,5 +212,32 @@ impl Kill {
 			error!(%err, "Couldn't send discord response before the kill admin command");
 		}
 		state.kill_now.notify_waiters();
+	}
+}
+
+impl PurgeUserRatelimits {
+	pub async fn handle(
+		&self,
+		state: GlobalStateRef<'_>,
+		interaction: Interaction,
+	) -> color_eyre::Result<()> {
+		state.ratelimits.lock().or_poisoned().clear()?;
+		if let Err(err) = state
+			.client
+			.interaction(interaction.application_id)
+			.create_response(
+				interaction.id,
+				&interaction.token,
+				&InteractionResponse {
+					kind: InteractionResponseType::ChannelMessageWithSource,
+					data: Some(InteractionResponseDataBuilder::new()
+						.content("Purged all ratelimit data").build()),
+				},
+			)
+			.await
+		{
+			error!(%err, "Couldn't respond to purging ratelimits command");
+		}
+		Ok(())
 	}
 }
