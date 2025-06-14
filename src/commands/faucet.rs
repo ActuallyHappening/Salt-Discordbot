@@ -331,16 +331,14 @@ impl SupportedChain {
 		};
 		let salt = Salt::new(salt_config)?;
 		let transaction = salt.transaction(TransactionInfo {
-			amount: &amount,
-			vault_address: &state.env.faucet_testnet_salt_account_address,
-			recipient_address: &address.to_string(),
+			amount,
+			vault_address: state.env.faucet_testnet_salt_account_address,
+			recipient_address: address,
 			data: "",
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
 			gas: salt_sdk::GasEstimator::Mul(10.0),
 		});
-		let interaction2 = interaction.clone();
 		let logging = async move {
-			let interaction = interaction2;
 			while let Some(log) = live_logs.recv().await {
 				info!(%log, "Sending live log");
 				follow_up(&log)
@@ -348,7 +346,6 @@ impl SupportedChain {
 					.wrap_err("Live logging failed to send")?;
 			}
 			Result::<(), color_eyre::Report>::Ok(())
-			// return salt_sdk::Error::LiveLogging(eyre!("Live logging disconnected"));
 		};
 
 		let (res, logging_err) = tokio::join!(transaction, logging);

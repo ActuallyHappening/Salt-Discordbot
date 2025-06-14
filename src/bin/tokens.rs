@@ -2,7 +2,7 @@
 use ::tracing::{debug, error, info, trace, warn};
 use alloy::{
 	primitives::{
-		Address,
+		Address, U256,
 		utils::{ParseUnits, Unit, parse_ether},
 	},
 	signers::local::PrivateKeySigner,
@@ -62,7 +62,7 @@ async fn main() -> color_eyre::Result<()> {
 
 	let sanity_check = async || {
 		// check balances for sanity
-		let salt_wallet: Address = env.faucet_testnet_salt_account_address.parse()?;
+		let salt_wallet: Address = env.faucet_testnet_salt_account_address;
 		let provider = alloy::providers::ProviderBuilder::new()
 			.connect(env.somnia_shannon_rpc_endpoint.as_str())
 			.await?;
@@ -106,9 +106,9 @@ async fn main() -> color_eyre::Result<()> {
 		})?;
 		let output = salt
 			.transaction(salt_sdk::TransactionInfo {
-				amount: "0",
-				vault_address: &env.faucet_testnet_salt_account_address.to_string(),
-				recipient_address: &PING.to_string(),
+				amount: U256::from(0),
+				vault_address: env.faucet_testnet_salt_account_address,
+				recipient_address: PING,
 				data: &data_str,
 				logging: salt_sdk::LiveLogging::from_cb(|msg| info!(%msg, "Transaction live logs")),
 				gas: salt_sdk::GasEstimator::Mul(100.0),

@@ -1,3 +1,4 @@
+use alloy::primitives::Address;
 use url::Url;
 
 use crate::prelude::*;
@@ -14,7 +15,7 @@ pub struct Env {
 	pub sepolia_arbitrum_rpc_endpoint: Url,
 	pub sepolia_ethereum_rpc_endpoint: Url,
 	pub polygon_amoy_rpc_endpoint: Url,
-	pub faucet_testnet_salt_account_address: String,
+	pub faucet_testnet_salt_account_address: Address,
 }
 
 /// Only statically includes toml if building for release,
