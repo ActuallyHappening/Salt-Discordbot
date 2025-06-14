@@ -1,4 +1,4 @@
-use alloy::primitives::{U256, utils::parse_ether};
+use alloy::{hex::FromHexError, primitives::{utils::parse_ether, Address, U256}};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use url::Url;
 
@@ -16,6 +16,9 @@ pub(super) trait FaucetBlockchain: BlockchainListing {
 	fn faucet_amount(&self) -> U256;
 
 	fn address_str(&self) -> &str;
+	fn address(&self) -> Result<Address, FromHexError> {
+		self.address_str().parse()
+	}
 }
 
 #[derive(Debug, Clone)]

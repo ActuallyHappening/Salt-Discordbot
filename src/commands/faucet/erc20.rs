@@ -1,9 +1,8 @@
-use alloy::primitives::{address, utils::parse_ether, Address, U256};
+use alloy::primitives::{Address, U256, address, utils::parse_ether};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::application::interaction::Interaction;
 
 use crate::{commands::faucet::DiscordInfo, common::GlobalStateRef, ratelimits};
-
 
 /// Faucet 0.05 PING on Somnia Shannon (an ERC20 token)
 #[derive(Debug, Clone, CommandModel, CreateCommand)]
@@ -21,7 +20,12 @@ impl SomniaShannonPing {
 }
 
 impl SomniaShannonPing {
-	pub async fn handle(&self, state: GlobalStateRef<'_>, interaction: Interaction, discord_info: DiscordInfo) -> color_eyre::Result<()> {
+	pub async fn handle(
+		&self,
+		state: GlobalStateRef<'_>,
+		interaction: Interaction,
+		discord_info: DiscordInfo,
+	) -> color_eyre::Result<()> {
 		let address = self.address;
 		let DiscordInfo {
 			discord_id,
@@ -29,7 +33,7 @@ impl SomniaShannonPing {
 		} = discord_info;
 
 		// check ratelimiting if not expanded limits
-		let ratelimit_key = ratelimits::KeyBuilder {
+		let ratelimit_key = ratelimits::Key {
 			address: address.clone().into_boxed_str(),
 			discord_id: discord_id.to_string().into_boxed_str(),
 			chain_id,

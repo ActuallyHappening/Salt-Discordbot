@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use std::time::Duration;
 use alloy::primitives::Address;
+use std::time::Duration;
 use time::OffsetDateTime;
-use twilight_model::id::marker::UserMarker;
 use twilight_model::id::Id;
+use twilight_model::id::marker::UserMarker;
 
 use crate::prelude::*;
 
@@ -32,29 +32,11 @@ fn chain_limits_serde() {
 	RateLimits::read().expect("to deserialize");
 }
 
-pub struct KeyBuilder<'a> {
+pub struct Key {
 	pub address: Address,
 	pub discord_id: Id<UserMarker>,
 	pub chain_id: u64,
-	pub chain_name: String,
-}
-
-impl<'a> KeyBuilder<'a> {
-	pub fn build(&self) -> Key {
-		Key {
-			address: String::from(self.address).to_lowercase().into_boxed_str(),
-			discord_id: self.discord_id,
-			chain_id: self.chain_id,
-			chain_name: self.chain_name,
-		}
-	}
-}
-
-pub struct Key {
-	address: Address,
-	discord_id: Id<UserMarker>,
-	chain_id: u64,
-	chain_name: String,
+	pub chain_name: &'static str,
 }
 
 /// Doesn't use u64 as key
@@ -97,17 +79,17 @@ mod ser {
 }
 
 impl RateLimits {
-	pub fn check(&mut self, key: &KeyBuilder) -> Result<(), RateLimitErr> {
+	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
 		if !self.0.contains_key(&key.chain_id) {
 			self.0.insert(key.chain_id, ChainLimits::default());
 		}
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
-			.check(&key.address, &key.discord_id, &key.chain_name)
+			.check(key.address, key.discord_id, &key.chain_name)
 	}
 
-	fn describe(&mut self, discord_id: &str) -> String {
+	fn describe(&mut self, discord_id: Id<UserMarker>) -> String {
 		let now = OffsetDateTime::now_utc();
 		let mut ret = String::new();
 		for (chain_id, chain_limits) in &mut self.0 {
@@ -118,14 +100,14 @@ impl RateLimits {
 		ret
 	}
 
-	pub fn register(&mut self, key: &KeyBuilder) -> Result<()> {
+	pub fn register(&mut self, key: &Key) -> Result<()> {
 		if !self.0.contains_key(&key.chain_id) {
 			self.0.insert(key.chain_id, ChainLimits::default());
 		}
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
-			.register(&key.address, &key.discord_id);
+			.register(key.address, key.discord_id);
 
 		self.save()?;
 		Ok(())
@@ -165,11 +147,10 @@ impl RateLimits {
 impl ChainLimits {
 	pub fn check(
 		&mut self,
-		address: &str,
+		address: Address,
 		discord_id: Id<UserMarker>,
-		chain_name: &str,
+		chain_name: &'static str,
 	) -> Result<(), RateLimitErr> {
-		let address: Box<str> = address.to_owned().into_boxed_str();
 		let now = OffsetDateTime::now_utc();
 
 		if !self.address.contains_key(&address) {
@@ -211,7 +192,7 @@ impl ChainLimits {
 		}
 	}
 
-	fn describe(&mut self, now: &OffsetDateTime, discord_id: &str) -> String {
+	fn describe(&mut self, now: &OffsetDateTime, discord_id: Id<UserMarker>) -> String {
 		let mut ret = String::new();
 		for (address, records) in self.address.clone() {
 			let records = records
@@ -220,7 +201,7 @@ impl ChainLimits {
 				.collect::<Vec<String>>();
 			ret.push_str(&format!(
 				"Address (ratelimited: {:?}): {:?}",
-				self.check(&address, discord_id, "").is_ok(),
+				self.check(address, discord_id, "").is_ok(),
 				records
 			));
 		}
@@ -229,9 +210,7 @@ impl ChainLimits {
 	}
 
 	/// Automatically saves
-	pub fn register(&mut self, address: &str, discord_id: &str) {
-		let address: Box<str> = address.to_owned().into_boxed_str();
-		let discord_id = discord_id.to_owned().into_boxed_str();
+	pub fn register(&mut self, address: Address, discord_id: Id<UserMarker>) {
 		let now = OffsetDateTime::now_utc();
 
 		if !self.address.contains_key(&address) {

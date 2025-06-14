@@ -1,14 +1,18 @@
 use std::sync::Mutex;
 
-use crate::{chains, chains::SupportedChain, prelude::*, ratelimits::KeyBuilder};
+use crate::{
+	chains::{self, BlockchainListing, SupportedChain},
+	prelude::*,
+	ratelimits::Key,
+};
 use chains::FaucetBlockchain as _;
 use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig, TransactionInfo};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
-	application::interaction::{application_command::CommandData, Interaction},
+	application::interaction::{Interaction, application_command::CommandData},
 	http::interaction::{InteractionResponse, InteractionResponseType},
-	id::{marker::UserMarker, Id},
+	id::{Id, marker::UserMarker},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -34,7 +38,6 @@ pub(super) enum FaucetCommand {
 
 	#[command(name = "somnia-shannon-ping")]
 	PingSomniaShannon(erc20::SomniaShannonPing),
-
 	// #[command(name = "check")]
 	// Check(Check),
 
@@ -199,48 +202,74 @@ impl SupportedChain {
 		interaction: Interaction,
 		discord_info: DiscordInfo,
 	) -> color_eyre::Result<()> {
-		let chains::BlockchainInfo {
-			chain_id,
-			rpc_url,
-			token_name,
-			chain_name,
-		} = self.info(state.env);
+		let chain_id = self.chain_id();
+		let rpc_url = self.rpc_url(state.env);
+		let token_name = self.native_token_name();
+		let chain_name = self.chain_name();
 		let amount = self.faucet_amount();
-		let address = self.address_str();
+		let address = self.address();
 		let DiscordInfo {
 			discord_id,
 			has_expanded_limits,
 		} = discord_info;
 
+		let respond = async |msg: &str| {
+			state
+				.client
+				.interaction(interaction.application_id)
+				.create_response(
+					interaction.id,
+					&interaction.token,
+					&InteractionResponse {
+						kind: InteractionResponseType::ChannelMessageWithSource,
+						data: Some(InteractionResponseDataBuilder::new().content(msg).build()),
+					},
+				)
+				.await
+				.wrap_err("Couldn't initially respond to a discord interaction")
+		};
+		let follow_up = async |msg: &str| {
+			state
+				.client
+				.interaction(interaction.application_id)
+				.create_followup(&interaction.token)
+				.content(msg.as_ref())
+				.await
+				.wrap_err("Couldn't followup a discord interaction")
+		};
+
+		let address = match address {
+			Ok(address) => address,
+			Err(err) => {
+				respond(&format!(
+					"Invalid Etherium wallet address {:?}: {}",
+					self.address_str(),
+					err
+				))
+				.await?;
+				return Ok(());
+			}
+		};
+
 		// check ratelimiting if not expanded limits
-		let ratelimit_key = KeyBuilder {
-			address: address.clone().into_boxed_str(),
-			discord_id: discord_id.to_string().into_boxed_str(),
+		let ratelimit_key = Key {
+			address,
+			discord_id,
 			chain_id,
-			chain_name: chain_name.to_owned(),
+			chain_name,
 		};
 		if !has_expanded_limits {
 			let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
 			if let Err(msg) = ratelimit {
-				let data = InteractionResponseDataBuilder::new()
-					.content(format!(
-						"Couldn't faucet you any tokens because you are ratelimited!\n{}",
-						msg
-					))
-					.build();
-				let response = InteractionResponse {
-					kind: InteractionResponseType::ChannelMessageWithSource,
-					data: Some(data),
-				};
-				state
-					.client
-					.interaction(interaction.application_id)
-					.create_response(interaction.id, &interaction.token, &response)
-					.await?;
+				let msg = format!(
+					"Couldn't faucet you any tokens because you are ratelimited!\n{}",
+					msg
+				);
+				respond(&msg).await?;
 				return Ok(());
 			}
 		} else {
-			info!(discord_id, "This person has expanded limits");
+			info!(%discord_id, "This person has expanded limits");
 		}
 
 		// do business logic checks
@@ -287,22 +316,10 @@ impl SupportedChain {
 		// }
 
 		// initial response
-		let response = InteractionResponse {
-			kind: InteractionResponseType::ChannelMessageWithSource,
-			data: Some(
-				InteractionResponseDataBuilder::new()
-					.content(&format!(
-						"Starting faucet of {amount}{token_name} ({chain_name}) to {address} ..."
-					))
-					.build(),
-			),
-		};
-		state
-			.client
-			.interaction(interaction.application_id)
-			.create_response(interaction.id, &interaction.token, &response)
-			.await
-			.wrap_err("Unable to respond to the interaction initially")?;
+		respond(&format!(
+			"Starting faucet of {amount}{token_name} ({chain_name}) to {address} ..."
+		))
+		.await?;
 
 		// do transaction
 		let (send_logs, mut live_logs) = tokio::sync::mpsc::channel(10);
@@ -316,7 +333,7 @@ impl SupportedChain {
 		let transaction = salt.transaction(TransactionInfo {
 			amount: &amount,
 			vault_address: &state.env.faucet_testnet_salt_account_address,
-			recipient_address: &address,
+			recipient_address: &address.to_string(),
 			data: "",
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
 			gas: salt_sdk::GasEstimator::Mul(10.0),
@@ -326,14 +343,9 @@ impl SupportedChain {
 			let interaction = interaction2;
 			while let Some(log) = live_logs.recv().await {
 				info!(%log, "Sending live log");
-				state
-					.client
-					.interaction(interaction.application_id)
-					.create_followup(&interaction.token)
-					.content(&log)
+				follow_up(&log)
 					.await
-					.wrap_err("Couldn't follow up with a live logging message")
-					.note("Couldn't follow up discord interaction")?;
+					.wrap_err("Live logging failed to send")?;
 			}
 			Result::<(), color_eyre::Report>::Ok(())
 			// return salt_sdk::Error::LiveLogging(eyre!("Live logging disconnected"));
@@ -367,11 +379,7 @@ impl SupportedChain {
 			err_string = format!(
 				"Error transacting {amount}{token_name} ({chain_name}) to {address}:\n{err_string}"
 			);
-			state
-				.client
-				.interaction(interaction.application_id)
-				.create_followup(&interaction.token)
-				.content(&err_string)
+			follow_up(&err_string)
 				.await
 				.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
 		} else {
@@ -382,15 +390,10 @@ impl SupportedChain {
 				.or_poisoned()
 				.register(&ratelimit_key)
 				.wrap_err("Couldn't register successful bot transaction")?;
-			state
-				.client
-				.interaction(interaction.application_id)
-				.create_followup(&interaction.token)
-				.content(&format!(
-					"Successful faucet of {amount}{token_name} ({chain_name}) to {address}"
-				))
-				.await
-				.wrap_err("Couldn't follow up a successful transaction")?;
+			follow_up(&format!(
+				"Successful faucet of {amount}{token_name} ({chain_name}) to {address}"
+			))
+			.await?;
 			info!("Finished handling the discord interaction");
 		}
 
