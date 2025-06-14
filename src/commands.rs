@@ -10,7 +10,8 @@ pub fn public_commands() -> Vec<twilight_model::application::command::Command> {
 
 /// Includes all of [public_commands] as well
 pub fn admin_commands() -> Vec<twilight_model::application::command::Command> {
-	let mut public = public_commands();
+	// let mut public = public_commands();
+	let mut public = vec![];
 	public.extend([admin::AdminCommand::create_command().into()]);
 	public
 }

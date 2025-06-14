@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use alloy::primitives::utils::{ParseUnits, Unit};
 use alloy::primitives::{Address, U256, address, utils::parse_ether};
 use alloy::sol_types::SolCall as _;
 use color_eyre::eyre::Context as _;
@@ -88,6 +89,8 @@ impl SomniaShannonPing {
 		let chain_id = self.chain_id();
 		let chain_name = self.chain_name();
 		let token_name = Self::erc20_token_name();
+		let amount = Self::amount();
+		let amount_eth = ParseUnits::from(amount).format_units(Unit::ETHER);
 		let rpc_url = &state.env.somnia_shannon_rpc_endpoint;
 		let DiscordInfo {
 			discord_id,
@@ -152,7 +155,6 @@ impl SomniaShannonPing {
 			info!(%discord_id, "This person has expanded limits");
 		}
 
-		let amount = Self::amount();
 		let calldata = ERC20::transferCall {
 			amount,
 			recipient: address,
@@ -161,7 +163,7 @@ impl SomniaShannonPing {
 
 		// initial response
 		respond(&format!(
-			"Starting faucet of {amount}{token_name}, an ERC20 token ({chain_name}), to {address} ..."
+			"Starting faucet of {amount_eth}{token_name}, an ERC20 token ({chain_name}), to {address} ..."
 		))
 		.await?;
 
@@ -175,12 +177,12 @@ impl SomniaShannonPing {
 		};
 		let salt = salt_sdk::Salt::new(salt_config)?;
 		let transaction = salt.transaction(salt_sdk::TransactionInfo {
-			amount,
+			amount: U256::from(0),
 			vault_address: state.env.faucet_testnet_salt_account_address,
-			recipient_address: address,
+			recipient_address: SomniaShannonPing::SMART_CONTRACT_ADDR,
 			data: calldata,
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
-			gas: salt_sdk::GasEstimator::Mul(10.0),
+			gas: salt_sdk::GasEstimator::Mul(100.0),
 		});
 		let logging = async move {
 			while let Some(log) = live_logs.recv().await {
@@ -218,7 +220,7 @@ impl SomniaShannonPing {
 				err_string = format!("{}...<truncated>", truncated);
 			}
 			err_string = format!(
-				"Error transacting {amount}{token_name} ({chain_name}) to {address}:\n{err_string}"
+				"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"
 			);
 			follow_up(&err_string)
 				.await
@@ -232,7 +234,7 @@ impl SomniaShannonPing {
 				.register(&ratelimit_key)
 				.wrap_err("Couldn't register successful bot transaction")?;
 			follow_up(&format!(
-				"Successful faucet of {amount}{token_name} ({chain_name}) to {address}"
+				"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}"
 			))
 			.await?;
 			info!("Finished handling the discord interaction");

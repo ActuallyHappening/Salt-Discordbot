@@ -5,6 +5,7 @@ use crate::{
 	prelude::*,
 	ratelimits::Key,
 };
+use alloy::primitives::utils::{ParseUnits, Unit};
 use chains::FaucetBlockchain as _;
 use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig, TransactionInfo};
@@ -207,6 +208,7 @@ impl SupportedChain {
 		let token_name = self.native_token_name();
 		let chain_name = self.chain_name();
 		let amount = self.faucet_amount();
+		let amount_eth = ParseUnits::from(amount).format_units(Unit::ETHER);
 		let address = self.address();
 		let DiscordInfo {
 			discord_id,
@@ -317,7 +319,7 @@ impl SupportedChain {
 
 		// initial response
 		respond(&format!(
-			"Starting faucet of {amount}{token_name} ({chain_name}) to {address} ..."
+			"Starting faucet of {amount_eth}{token_name} ({chain_name}) to {address} ..."
 		))
 		.await?;
 
@@ -374,7 +376,7 @@ impl SupportedChain {
 				err_string = format!("{}...<truncated>", truncated);
 			}
 			err_string = format!(
-				"Error transacting {amount}{token_name} ({chain_name}) to {address}:\n{err_string}"
+				"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"
 			);
 			follow_up(&err_string)
 				.await
@@ -388,7 +390,7 @@ impl SupportedChain {
 				.register(&ratelimit_key)
 				.wrap_err("Couldn't register successful bot transaction")?;
 			follow_up(&format!(
-				"Successful faucet of {amount}{token_name} ({chain_name}) to {address}"
+				"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}"
 			))
 			.await?;
 			info!("Finished handling the discord interaction");
