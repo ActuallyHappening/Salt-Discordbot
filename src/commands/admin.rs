@@ -24,7 +24,7 @@ pub(super) enum AdminCommand {
 	#[command(name = "purge-user-dedupe")]
 	PurgeUserDedupe(PurgeUserDedupe),
 
-	#[command(name = "purse-user-ratelimits")]
+	#[command(name = "purge-user-ratelimits")]
 	PurgeUserRatelimits(PurgeUserRatelimits),
 
 	#[command(name = "dump-logs")]
