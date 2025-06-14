@@ -96,7 +96,7 @@ async fn main() -> color_eyre::Result<()> {
 			amount,
 			recipient: me,
 		};
-		let data_str = call.abi_encode().to_lower_hex_string();
+		let calldata = call.abi_encode();
 
 		let salt = salt_sdk::Salt::new(salt_sdk::SaltConfig {
 			private_key: env.private_key,
@@ -109,7 +109,7 @@ async fn main() -> color_eyre::Result<()> {
 				amount: U256::from(0),
 				vault_address: env.faucet_testnet_salt_account_address,
 				recipient_address: PING,
-				data: &data_str,
+				data: calldata,
 				logging: salt_sdk::LiveLogging::from_cb(|msg| info!(%msg, "Transaction live logs")),
 				gas: salt_sdk::GasEstimator::Mul(100.0),
 			})

@@ -21,6 +21,7 @@ use color_eyre::{
 	eyre::{Context as _, eyre},
 };
 use git::Git;
+use hex::DisplayHex as _;
 use tokio::{io::AsyncReadExt as _, sync::oneshot};
 use url::Url;
 use which::which;
@@ -260,11 +261,11 @@ impl From<tokio::sync::mpsc::Sender<String>> for LiveLogging {
 	}
 }
 
-pub struct TransactionInfo<'a> {
+pub struct TransactionInfo {
 	pub amount: U256,
 	pub vault_address: Address,
 	pub recipient_address: Address,
-	pub data: &'a str,
+	pub data: Vec<u8>,
 	pub gas: GasEstimator,
 	pub logging: LiveLogging,
 }
@@ -374,7 +375,7 @@ async fn logging(
 
 impl Salt {
 	#[tracing::instrument(name = "transaction", skip_all)]
-	pub async fn transaction(&self, info: TransactionInfo<'_>) -> Result<Output> {
+	pub async fn transaction(&self, info: TransactionInfo) -> Result<Output> {
 		debug!("Beginning transaction ...");
 
 		let TransactionInfo {
@@ -415,7 +416,7 @@ impl Salt {
 					"-recipient-address",
 					&recipient_address.to_string(),
 					"-data",
-					data,
+					&data.to_lower_hex_string(),
 					"-logging-port",
 					&addr.port().to_string(),
 					"-gas",

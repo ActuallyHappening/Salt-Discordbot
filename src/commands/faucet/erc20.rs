@@ -1,4 +1,6 @@
+use crate::prelude::*;
 use alloy::primitives::{Address, U256, address, utils::parse_ether};
+use alloy::sol_types::SolCall as _;
 use color_eyre::eyre::Context as _;
 use or_poisoned::OrPoisoned as _;
 use twilight_interactions::command::{CommandModel, CreateCommand};
@@ -7,7 +9,6 @@ use twilight_model::{
 	http::interaction::{InteractionResponse, InteractionResponseType},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
-use crate::prelude::*;
 
 use crate::{
 	chains::{BlockchainListing, SomniaShannon},
@@ -56,6 +57,26 @@ impl SomniaShannonPing {
 	const SMART_CONTRACT_ADDR: Address = address!("0x33E7fAB0a8a5da1A923180989bD617c9c2D1C493");
 }
 
+// Generate the contract bindings for the ERC20 interface.
+alloy::sol! {
+	// The `rpc` attribute enables contract interaction via the provider.
+	#[sol(rpc, abi)]
+	contract ERC20 {
+		function name() public view returns (string);
+		function symbol() public view returns (string);
+		function decimals() public view returns (uint8);
+		function totalSupply() public view returns (uint256);
+		function balanceOf(address account) public view returns (uint256);
+		function transfer(address recipient, uint256 amount) public returns (bool);
+		function allowance(address owner, address spender) public view returns (uint256);
+		function approve(address spender, uint256 amount) public returns (bool);
+		function transferFrom(address sender, address recipient, uint256 amount) public returns (bool);
+
+		event Transfer(address indexed from, address indexed to, uint256 value);
+		event Approval(address indexed owner, address indexed spender, uint256 value);
+	}
+}
+
 impl SomniaShannonPing {
 	pub async fn handle(
 		&self,
@@ -66,6 +87,8 @@ impl SomniaShannonPing {
 		let address = &self.address;
 		let chain_id = self.chain_id();
 		let chain_name = self.chain_name();
+		let token_name = Self::erc20_token_name();
+		let rpc_url = &state.env.somnia_shannon_rpc_endpoint;
 		let DiscordInfo {
 			discord_id,
 			has_expanded_limits,
@@ -127,6 +150,92 @@ impl SomniaShannonPing {
 			}
 		} else {
 			info!(%discord_id, "This person has expanded limits");
+		}
+
+		let amount = Self::amount();
+		let calldata = ERC20::transferCall {
+			amount,
+			recipient: address,
+		}
+		.abi_encode();
+
+		// initial response
+		respond(&format!(
+			"Starting faucet of {amount}{token_name}, an ERC20 token ({chain_name}), to {address} ..."
+		))
+		.await?;
+
+		// do transaction
+		let (send_logs, mut live_logs) = tokio::sync::mpsc::channel(10);
+		let salt_config = salt_sdk::SaltConfig {
+			private_key: state.env.private_key.clone(),
+			orchestration_network_rpc_node: state.env.sepolia_arbitrum_rpc_endpoint.clone(),
+			broadcasting_network_rpc_node: rpc_url.clone(),
+			broadcasting_network_id: chain_id,
+		};
+		let salt = salt_sdk::Salt::new(salt_config)?;
+		let transaction = salt.transaction(salt_sdk::TransactionInfo {
+			amount,
+			vault_address: state.env.faucet_testnet_salt_account_address,
+			recipient_address: address,
+			data: calldata,
+			logging: salt_sdk::LiveLogging::from_sender(send_logs),
+			gas: salt_sdk::GasEstimator::Mul(10.0),
+		});
+		let logging = async move {
+			while let Some(log) = live_logs.recv().await {
+				info!(%log, "Sending live log");
+				follow_up(&log)
+					.await
+					.wrap_err("Live logging failed to send")?;
+			}
+			Result::<(), color_eyre::Report>::Ok(())
+		};
+
+		let (res, logging_err) = tokio::join!(transaction, logging);
+
+		if let Err(err) = logging_err {
+			error!("Failed to send live logs:\n{}", err);
+		}
+
+		if let Err(err) = res {
+			error!("Failed to do salt transaction:\n{}", err);
+			let mut err_string = err.to_string();
+
+			if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
+				err_string = output.stderr;
+			}
+
+			if err_string.len() > 1900 {
+				// only keeps first 1900 bytes, avoiding a panic if using String.split_off
+				// https://doc.rust-lang.org/stable/std/string/struct.String.html#method.split_off
+				let truncated = err_string
+					.into_bytes()
+					.into_iter()
+					.take(1900)
+					.collect::<Vec<u8>>();
+				let truncated = String::from_utf8_lossy(&truncated);
+				err_string = format!("{}...<truncated>", truncated);
+			}
+			err_string = format!(
+				"Error transacting {amount}{token_name} ({chain_name}) to {address}:\n{err_string}"
+			);
+			follow_up(&err_string)
+				.await
+				.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
+		} else {
+			// still registers even if expanded limits
+			state
+				.ratelimits
+				.lock()
+				.or_poisoned()
+				.register(&ratelimit_key)
+				.wrap_err("Couldn't register successful bot transaction")?;
+			follow_up(&format!(
+				"Successful faucet of {amount}{token_name} ({chain_name}) to {address}"
+			))
+			.await?;
+			info!("Finished handling the discord interaction");
 		}
 
 		Ok(())

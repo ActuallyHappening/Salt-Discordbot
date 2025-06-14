@@ -3696,6 +3696,7 @@ dependencies = [
  "camino",
  "color-eyre",
  "dirs",
+ "hex-conservative 0.3.0",
  "regex",
  "rustyline 15.0.0",
  "serde",

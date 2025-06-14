@@ -334,7 +334,7 @@ impl SupportedChain {
 			amount,
 			vault_address: state.env.faucet_testnet_salt_account_address,
 			recipient_address: address,
-			data: "",
+			data: vec![],
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
 			gas: salt_sdk::GasEstimator::Mul(10.0),
 		});
