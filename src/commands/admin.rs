@@ -64,8 +64,7 @@ impl AdminCommand {
 				let dump = state.per_user_spam_filters.dump();
 				state.per_user_spam_filters.purge();
 				let msg = format!(
-					"Purged the user dedupe data, this was what was purged:\n{}",
-					dump
+					"Purged the user dedupe data, this was what was purged:\n{dump}"
 				);
 				state
 					.client
@@ -156,8 +155,7 @@ impl DumpLogs {
 					.interaction(interaction.application_id)
 					.create_followup(&interaction.token)
 					.content(&format!(
-						"An internal error occurred while dumping the logs: {}",
-						err
+						"An internal error occurred while dumping the logs: {err}"
 					))
 					.await?;
 				Ok(())
@@ -177,11 +175,11 @@ impl DumpLogs {
 		let data = tokio::fs::read(&file_path)
 			.await
 			.wrap_err("Couldn't read log file")
-			.note(format!("Log file path: {}", file_path))?;
+			.note(format!("Log file path: {file_path}"))?;
 		let attachment = Attachment {
-			description: Some(format!("Log file exported at {}", now)),
+			description: Some(format!("Log file exported at {now}")),
 			file: data,
-			filename: format!("rust-discordbot-{}.json", file_timestamp),
+			filename: format!("rust-discordbot-{file_timestamp}.json"),
 			id: 1,
 		};
 		Ok(attachment)

@@ -41,7 +41,7 @@ impl PerUserSpamFilter {
 			string.push_str("No users are currently in the spam filter");
 		} else {
 			for discord_id in guard.iter() {
-				string.push_str(&format!("User {} is currently limited", discord_id));
+				string.push_str(&format!("User {discord_id} is currently limited"));
 			}
 		}
 		string

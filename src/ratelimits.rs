@@ -71,7 +71,7 @@ mod ser {
 				value
 					.0
 					.into_iter()
-					.map(|(k, v)| (k.to_string(), v.into()))
+					.map(|(k, v)| (k.to_string(), v))
 					.collect(),
 			)
 		}
@@ -80,20 +80,18 @@ mod ser {
 
 impl RateLimits {
 	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
-		if !self.0.contains_key(&key.chain_id) {
-			self.0.insert(key.chain_id, ChainLimits::default());
-		}
+		self.0.entry(key.chain_id).or_default();
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
-			.check(&OffsetDateTime::now_utc(), key.address, key.discord_id, &key.chain_name)
+			.check(&OffsetDateTime::now_utc(), key.address, key.discord_id, key.chain_name)
 	}
 
 	fn describe(&mut self, discord_id: Id<UserMarker>) -> String {
 		let now = OffsetDateTime::now_utc();
 		let mut ret = String::new();
 		for (chain_id, chain_limits) in &mut self.0 {
-			ret.push_str(&format!("Chain ID: {}\n", chain_id));
+			ret.push_str(&format!("Chain ID: {chain_id}\n"));
 			ret.push_str(&chain_limits.describe(&now, discord_id));
 			ret.push('\n');
 		}
@@ -101,9 +99,7 @@ impl RateLimits {
 	}
 
 	pub fn register(&mut self, key: &Key) -> Result<()> {
-		if !self.0.contains_key(&key.chain_id) {
-			self.0.insert(key.chain_id, ChainLimits::default());
-		}
+		self.0.entry(key.chain_id).or_default();
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
@@ -160,15 +156,11 @@ impl ChainLimits {
 		discord_id: Id<UserMarker>,
 		chain_name: &'static str,
 	) -> Result<(), RateLimitErr> {
-		if !self.address.contains_key(&address) {
-			self.address.insert(address.clone(), Vec::new());
-		}
-		let address_valid = Self::address_valid(&now, self.address.get(&address).unwrap());
+		self.address.entry(address).or_default();
+		let address_valid = Self::address_valid(now, self.address.get(&address).unwrap());
 
-		if !self.discord_id.contains_key(&discord_id) {
-			self.discord_id.insert(discord_id.clone(), Vec::new());
-		}
-		let discord_valid = Self::discord_id_valid(&now, self.discord_id.get(&discord_id).unwrap());
+		self.discord_id.entry(discord_id).or_default();
+		let discord_valid = Self::discord_id_valid(now, self.discord_id.get(&discord_id).unwrap());
 
 		let format_duration = |duration: time::Duration| {
 			let hours = duration.whole_hours();
@@ -204,7 +196,7 @@ impl ChainLimits {
 		for (address, records) in self.address.clone() {
 			let records = records
 				.into_iter()
-				.map(|date| format_date(date.clone()))
+				.map(format_date)
 				.collect::<Vec<String>>();
 			ret.push_str(&format!(
 				"Address (ratelimited: {:?}): {:?}",
@@ -212,7 +204,7 @@ impl ChainLimits {
 				records
 			));
 		}
-		ret.push_str("\n");
+		ret.push('\n');
 		ret
 	}
 
@@ -220,14 +212,10 @@ impl ChainLimits {
 	pub fn register(&mut self, address: Address, discord_id: Id<UserMarker>) {
 		let now = OffsetDateTime::now_utc();
 
-		if !self.address.contains_key(&address) {
-			self.address.insert(address.clone(), Vec::new());
-		}
+		self.address.entry(address).or_default();
 		self.address.get_mut(&address).unwrap().push(now);
 
-		if !self.discord_id.contains_key(&discord_id) {
-			self.discord_id.insert(discord_id.clone(), Vec::new());
-		}
+		self.discord_id.entry(discord_id).or_default();
 		self.discord_id.get_mut(&discord_id).unwrap().push(now);
 	}
 

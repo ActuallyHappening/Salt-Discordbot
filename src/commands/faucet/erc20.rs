@@ -145,8 +145,7 @@ impl SomniaShannonPing {
 			let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
 			if let Err(msg) = ratelimit {
 				let msg = format!(
-					"Couldn't faucet you any tokens because you are ratelimited!\n{}",
-					msg
+					"Couldn't faucet you any tokens because you are ratelimited!\n{msg}"
 				);
 				respond(&msg).await?;
 				return Ok(());
@@ -218,7 +217,7 @@ impl SomniaShannonPing {
 					.take(1900)
 					.collect::<Vec<u8>>();
 				let truncated = String::from_utf8_lossy(&truncated);
-				err_string = format!("{}...<truncated>", truncated);
+				err_string = format!("{truncated}...<truncated>");
 			}
 			err_string = format!(
 				"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"

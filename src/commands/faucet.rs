@@ -187,10 +187,10 @@ impl FaucetCommand {
 				.client
 				.interaction(interaction.application_id)
 				.create_followup(&interaction.token)
-				.content(&format!("An internal error occurred: {}", err))
+				.content(&format!("An internal error occurred: {err}"))
 				.await
 				.wrap_err("Couldn't send internal error message")
-				.note(format!("Original internal error: {}", err))?;
+				.note(format!("Original internal error: {err}"))?;
 		}
 		Ok(())
 	}
@@ -264,8 +264,7 @@ impl SupportedChain {
 			let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
 			if let Err(msg) = ratelimit {
 				let msg = format!(
-					"Couldn't faucet you any tokens because you are ratelimited!\n{}",
-					msg
+					"Couldn't faucet you any tokens because you are ratelimited!\n{msg}"
 				);
 				respond(&msg).await?;
 				return Ok(());
@@ -374,7 +373,7 @@ impl SupportedChain {
 					.take(1900)
 					.collect::<Vec<u8>>();
 				let truncated = String::from_utf8_lossy(&truncated);
-				err_string = format!("{}...<truncated>", truncated);
+				err_string = format!("{truncated}...<truncated>");
 			}
 			err_string = format!(
 				"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"
