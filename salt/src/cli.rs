@@ -4,6 +4,9 @@ use std::process::{ExitStatus, Stdio};
 
 use crate::prelude::*;
 
+pub use git::*;
+pub(crate) mod git;
+
 pub(crate) struct Command(std::process::Command);
 
 pub(crate) struct AsyncCommand(tokio::process::Command);
