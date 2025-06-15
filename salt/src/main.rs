@@ -38,6 +38,7 @@ async fn main() -> color_eyre::Result<()> {
 			data: vec![],
 			logging: LiveLogging::from_cb(|msg| info!(%msg)),
 			gas: GasEstimator::Default,
+			confirm_publish: true,
 		})
 		.await
 		.wrap_err("Couldn't do salt transaction")?;

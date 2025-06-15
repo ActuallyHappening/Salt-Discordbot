@@ -183,6 +183,7 @@ impl SomniaShannonPing {
 			data: calldata,
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
 			gas: salt_sdk::GasEstimator::Mul(100.0),
+			confirm_publish: true,
 		});
 		let logging = async move {
 			while let Some(log) = live_logs.recv().await {
