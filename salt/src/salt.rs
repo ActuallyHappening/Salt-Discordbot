@@ -272,6 +272,12 @@ impl Salt {
 			}
 		);
 
+		if confirm_publish {
+			trace!("Continuing to listen to transaction");
+
+			todo!("Get info about transaction like TxID from JS transaction function");
+		}
+
 		output
 	}
 }
