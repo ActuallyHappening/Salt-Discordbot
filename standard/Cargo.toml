@@ -1,0 +1,11 @@
+[package]
+name = "standard"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alloy = "1.0.9"
+tracing = "0.1.41"
+
+[lints]
+workspace = true

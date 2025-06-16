@@ -5,6 +5,7 @@
 !salt
 !private-apis
 !intu-sdk
+!standard
 
 !.gitmodules
 !.gitignore
