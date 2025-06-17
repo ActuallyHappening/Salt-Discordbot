@@ -5,7 +5,12 @@ edition = "2024"
 
 [dependencies]
 alloy = "1.0.9"
+color-eyre = "0.6.5"
+time = { version = "0.3.41", features = ["local-offset", "macros"] }
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.41"
+tracing-error = "0.2.1"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt", "time"] }
 
 [lints]
 workspace = true

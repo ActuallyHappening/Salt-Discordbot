@@ -4072,7 +4072,12 @@ name = "standard"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "color-eyre",
+ "time",
+ "tokio",
  "tracing",
+ "tracing-error",
+ "tracing-subscriber",
 ]
 
 [[package]]
