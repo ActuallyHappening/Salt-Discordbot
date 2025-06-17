@@ -40,7 +40,7 @@ async fn main() -> color_eyre::Result<()> {
 	let name = usdc.name().call().await?;
 	let my_balance = usdc.balanceOf(signer.address()).call().await?;
 
-	info!(?name,);
+	info!(?name, ?my_balance);
 
 	Ok(())
 }
