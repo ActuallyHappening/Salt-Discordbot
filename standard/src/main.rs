@@ -1,4 +1,4 @@
-use alloy::providers::ProviderBuilder;
+use alloy::{providers::ProviderBuilder, signers::local::PrivateKeySigner};
 use tracing::{debug, error, info, trace, warn};
 
 #[path = "tracing.rs"]
@@ -29,15 +29,18 @@ async fn main() -> color_eyre::Result<()> {
 	app_tracing::install_tracing("info,standard=trace")?;
 	trace!("Started tracing");
 
+	let private_key = include_str!("private-key");
+	let signer: PrivateKeySigner = private_key.parse()?;
 	let provider = ProviderBuilder::new()
+		.wallet(signer.clone())
 		.connect("https://dream-rpc.somnia.network/")
 		.await?;
 	let usdc = ERC20::new(standard::USDC, provider);
 
 	let name = usdc.name().call().await?;
-	let total_supply = usdc.totalSupply().call().await?;
+	let my_balance = usdc.balanceOf(signer.address()).call().await?;
 
-	info!(?name, ?total_supply);
+	info!(?name,);
 
 	Ok(())
 }
