@@ -100,13 +100,24 @@ async fn main() -> color_eyre::Result<()> {
 		info!(?orderbook_addr);
 
 		let orderbook = Orderbook::new(orderbook_addr, &provider);
+		let last_market_price = orderbook.lmp().call().await?;
+		info!(?last_market_price);
 	}
 	{
 		// order history using REST API
-		let history = rest_api
-			.get_account_trade_history_page(me, u16!(10), u16!(1))
-			.await?
-			.trade_histories;
+		let mut history = vec![];
+		history.extend(
+			rest_api
+				.get_account_trade_history_page(me, u16!(3), u16!(1))
+				.await?
+				.trade_histories,
+		);
+		history.extend(
+			rest_api
+				.get_account_trade_history_page(me, u16!(3), u16!(2))
+				.await?
+				.trade_histories,
+		);
 		let time_formatter = time::macros::format_description!(
 			"[day]/[month]/[year] [hour]:[minute]:[second] +[offset_hour]"
 		);
