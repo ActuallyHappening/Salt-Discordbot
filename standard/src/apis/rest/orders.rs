@@ -2,20 +2,24 @@ use std::num::NonZero;
 
 use alloy::primitives::{TxHash, U256};
 
-use super::u256_from_radix;
-use crate::{apis::rest::StandardRestApi, prelude::*};
+use super::u256_from_radix_ether;
+use crate::{
+	apis::rest::{StandardRestApi, token::InnerTokenData},
+	prelude::*,
+};
 
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
 	pub id: String,
 	pub is_bid: bool,
-	pub base: Address,
-	pub quote: Address,
+	pub base: InnerTokenData,
+	pub quote: InnerTokenData,
 	pub pair: String,
 	pub orderbook: Address,
-	#[serde(deserialize_with = "u256_from_radix")]
+	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub price: U256,
+	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub amount: U256,
 	pub placed: u128,
 	pub timestamp: u128,

@@ -5,7 +5,7 @@ pub mod prelude {
 	pub(crate) use color_eyre::{eyre::WrapErr as _, eyre::eyre};
 	pub(crate) use tracing::{debug, error, info, trace, warn};
 	pub(crate) use url::Url;
-	pub(crate) use ::nonzero_lit::*;
+	pub use ::nonzero_lit::*;
 }
 
 #[path = "tracing.rs"]

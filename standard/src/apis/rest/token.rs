@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{apis::rest::StandardRestApi, prelude::*};
-use super::u256_from_radix;
+use super::u256_from_radix_ether;
 
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct TokenData {
@@ -19,7 +19,7 @@ pub struct InnerTokenData {
 	pub id: String,
 	pub name: String,
 	pub symbol: String,
-	#[serde(deserialize_with = "u256_from_radix")]
+	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub total_supply: U256,
 	#[serde(rename = "logoURI")]
 	pub logo_uri: Url,
@@ -36,6 +36,7 @@ pub struct InnerTokenData {
 	pub total_day_buckets: u64,
 	pub total_week_buckets: u64,
 	pub total_month_buckets: u64,
+	#[serde(default)]
 	pub tags: Vec<String>,
 }
 

@@ -3,9 +3,12 @@ use alloy::{
 	providers::{Provider, ProviderBuilder},
 	signers::local::PrivateKeySigner,
 };
+use clap::Parser;
 use standard_sdk::{
 	USDC,
 	abis::matching_engine::MatchingEngine::{cancelOrdersCall, marketSellETHCall},
+	apis::rest::StandardRestApi,
+	prelude::*,
 };
 use tracing::{debug, error, info, trace, warn};
 
@@ -32,10 +35,18 @@ alloy::sol! {
 	}
 }
 
+#[derive(clap::Parser, Debug)]
+enum Cli {
+	Read,
+	Do,
+}
+
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
 	app_tracing::install_tracing("info,standard=trace")?;
 	trace!("Started tracing");
+
+	let cli = Cli::parse();
 
 	let private_key = include_str!("private-key");
 	let signer: PrivateKeySigner = private_key.parse()?;
@@ -44,6 +55,7 @@ async fn main() -> color_eyre::Result<()> {
 		.wallet(signer.clone())
 		.connect("https://dream-rpc.somnia.network/")
 		.await?;
+	let rest_api = StandardRestApi::default();
 
 	let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
 	info!(sst, "My native SST balance pre");
@@ -57,7 +69,7 @@ async fn main() -> color_eyre::Result<()> {
 		standard_sdk::abis::matching_engine::CONTRACT_ADDRESS,
 		&provider,
 	);
-	{
+	if matches!(cli, Cli::Do) {
 		let tx = marketSellETHCall {
 			quote: USDC,
 			isMaker: true,
@@ -86,17 +98,17 @@ async fn main() -> color_eyre::Result<()> {
 		let name = usdc.name().call().await?;
 		let my_balance = usdc.balanceOf(me).call().await?;
 		info!(?name, ?my_balance, "My USDC balance post");
-
-		let inner = receipt.inner.as_receipt().unwrap().logs.get(0).unwrap();
-		let inner = &inner.inner.data;
 	};
 
-	let tx = cancelOrdersCall {
-		base: todo!(),
-		quote: vec![USDC],
-		isBid: vec![false],
-		orderIds: vec![650],
-	};
+	let orders_page = rest_api.get_orders_page(me, u16!(10), u16!(1)).await?;
+	info!(?orders_page);
+
+	// let tx = cancelOrdersCall {
+	// 	base: todo!(),
+	// 	quote: vec![USDC],
+	// 	isBid: vec![false],
+	// 	orderIds: vec![650],
+	// };
 
 	Ok(())
 }

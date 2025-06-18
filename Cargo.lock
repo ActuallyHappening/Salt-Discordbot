@@ -4077,6 +4077,7 @@ name = "standard-sdk"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "clap",
  "color-eyre",
  "nonzero_lit",
  "reqwest",
