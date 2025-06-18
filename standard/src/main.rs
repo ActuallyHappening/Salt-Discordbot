@@ -54,7 +54,7 @@ async fn main() -> color_eyre::Result<()> {
 	info!(?name, ?my_balance, "My USDC balance pre");
 
 	let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
-		standard_sdk::CONTRACT_ADDRESS,
+		standard_sdk::abis::matching_engine::CONTRACT_ADDRESS,
 		&provider,
 	);
 	{
