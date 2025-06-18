@@ -5,6 +5,7 @@ pub mod prelude {
 	pub(crate) use color_eyre::{eyre::WrapErr as _, eyre::eyre};
 	pub(crate) use tracing::{debug, error, info, trace, warn};
 	pub(crate) use url::Url;
+	pub(crate) use ::nonzero_lit::*;
 }
 
 #[path = "tracing.rs"]
@@ -27,102 +28,7 @@ pub const WBTC: Address = address!("0x54597df4E4A6385B77F39d458Eb75443A8f9Aa9e")
 // https://learn.standardweb3.com/apps/spot/for-developers/websocket-streams
 
 pub mod apis {
-	pub mod rest {
-		#![allow(unused)]
-		//! https://learn.standardweb3.com/apps/spot/for-developers/rest-api
-
-		use crate::{app_tracing, prelude::*};
-
-		use alloy::primitives::ruint::aliases::U256;
-		use color_eyre::Section;
-		use serde::de::DeserializeOwned;
-		use std::borrow::Borrow;
-		use url::Url;
-
-		pub struct StandardRestApi {
-			base: Url,
-			client: reqwest::Client,
-		}
-
-		impl Default for StandardRestApi {
-			fn default() -> Self {
-				StandardRestApi {
-					base: "https://somnia-testnet-ponder-v5.standardweb3.com/"
-						.parse()
-						.unwrap(),
-					client: reqwest::Client::new(),
-				}
-			}
-		}
-
-		impl StandardRestApi {
-			pub async fn get<T>(
-				&self,
-				path: impl IntoIterator<Item = impl Borrow<str>>,
-			) -> color_eyre::Result<T>
-			where
-				T: DeserializeOwned,
-			{
-				let mut url = self.base.clone();
-				let mut url_path = url
-					.path_segments_mut()
-					.map_err(|_| eyre!("Couldn't access path of base URL"))?;
-				for segment in path {
-					url_path.push(segment.borrow());
-				}
-				drop(url_path);
-				let resp = self
-					.client
-					.get(url)
-					.send()
-					.await
-					.wrap_err("Couldn't get {url}")?;
-				let str = resp.text().await.wrap_err("Body not text")?;
-				serde_json::from_str(&str)
-					.wrap_err("Couldn't deserialize")
-					.note(format!("Original response: {str}"))
-			}
-		}
-
-		pub mod exchange {
-			use alloy::primitives::{Address, Bytes};
-
-			use crate::prelude::*;
-			use crate::{apis::rest::StandardRestApi, app_tracing};
-
-			#[derive(serde::Deserialize, Debug, Clone)]
-			#[serde(rename_all = "camelCase")]
-			pub struct ExchangeData {
-				pub id: String,
-				pub bytecode: Bytes,
-				/// OrderbookFactory
-				pub deployer: Address,
-				pub total_day_buckets: u64,
-				pub total_week_buckets: u64,
-				pub total_month_buckets: u64,
-			}
-
-			impl StandardRestApi {
-				/// /api/exchange
-				pub async fn get_exchange_data(&self) -> color_eyre::Result<ExchangeData> {
-					self.get(["api", "exchange"]).await
-				}
-			}
-
-			#[tokio::test]
-			async fn standard_rest_exchange_data() -> color_eyre::Result<()> {
-				app_tracing::install_tracing("info").ok();
-
-				let client = StandardRestApi::default();
-				let data = client.get_exchange_data().await?;
-				info!(?data);
-
-				Ok(())
-			}
-		}
-
-		pub mod token;
-}
+	pub mod rest;
 }
 
 pub mod abis {

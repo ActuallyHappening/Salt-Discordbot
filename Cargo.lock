@@ -2702,6 +2702,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "nonzero_lit"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30a9e0365849b8ce3d067218268d6c523c1c14f539f7e9157d635d8adfb308fa"
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4072,6 +4078,7 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "color-eyre",
+ "nonzero_lit",
  "reqwest",
  "serde",
  "serde_json",

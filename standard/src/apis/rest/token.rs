@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{apis::rest::StandardRestApi, prelude::*};
+use super::u256_from_radix;
 
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct TokenData {
@@ -36,34 +37,6 @@ pub struct InnerTokenData {
 	pub total_week_buckets: u64,
 	pub total_month_buckets: u64,
 	pub tags: Vec<String>,
-}
-
-/// From a base 10 string encoding of a large number
-fn u256_from_radix<'de, D>(deserializer: D) -> Result<U256, D::Error>
-where
-	D: serde::Deserializer<'de>,
-{
-	// serde_json -F arbitrary-precision
-	let s = serde_json::Number::deserialize(deserializer)?;
-	let s = s.to_string();
-	if s.contains("e+") {
-		// handle 1e+22 case
-		let exp_str = s
-			.split("e+")
-			.nth(1)
-			.ok_or(serde::de::Error::custom("expected something after 'e'"))?;
-		let exp: u8 = exp_str.parse().map_err(serde::de::Error::custom)?;
-		let exp: U256 = exp.try_into().map_err(serde::de::Error::custom)?;
-		let mantissa = exp_str
-			.split("e+")
-			.nth(0)
-			.ok_or(serde::de::Error::custom("expected orig"))?;
-		let num = U256::from_str_radix(&mantissa, 10).map_err(serde::de::Error::custom)?;
-		Ok(num.pow(exp))
-	} else {
-		let num = U256::from_str_radix(&s, 10).map_err(serde::de::Error::custom)?;
-		Ok(num)
-	}
 }
 
 /// https://learn.standardweb3.com/apps/spot/for-developers/rest-api#get-api-token-address
