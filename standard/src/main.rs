@@ -6,8 +6,12 @@ use alloy::{
 use clap::Parser;
 use standard_sdk::{
 	USDC,
-	abis::matching_engine::MatchingEngine::{
-		cancelOrdersCall, marketBuyETHCall, marketSellETHCall,
+	abis::{
+		matching_engine::{
+			self,
+			MatchingEngine::{self, cancelOrdersCall, marketBuyETHCall, marketSellETHCall},
+		},
+		orderbook_factory::OrderbookFactory,
 	},
 	apis::rest::StandardRestApi,
 	prelude::*,
@@ -74,7 +78,20 @@ async fn main() -> color_eyre::Result<()> {
 		info!(%name, %my_balance, "My USDC balance pre");
 	}
 	{
-		// order history
+		// order history using smart contract
+		let matching_engine = MatchingEngine::new(matching_engine::CONTRACT_ADDRESS, &provider);
+
+		let orderbook_factory_addr = matching_engine.orderbookFactory().call().await?;
+		info!(?orderbook_factory_addr);
+
+		let orderbook_factory = OrderbookFactory::new(orderbook_factory_addr, &provider);
+		let engine_addr = orderbook_factory.engine().call().await?;
+		info!(?engine_addr);
+
+		// matching_engine.
+	}
+	{
+		// order history using REST API
 		let history = rest_api
 			.get_account_trade_history_page(me, u16!(10), u16!(1))
 			.await?
@@ -89,17 +106,18 @@ async fn main() -> color_eyre::Result<()> {
 		for order in history {
 			let time = order.timestamp.to_offset(offset).format(&time_formatter)?;
 
-			let base_asset = order.base.name;
+			let base_asset = &order.base.name;
 			let base_amount =
 				ParseUnits::from(order.amount).format_units(order.base.decimals.try_into()?);
 
-			let quote_asset = order.quote.name;
+			let quote_asset = &order.quote.name;
 
 			let price = ParseUnits::from(order.price).format_units(Unit::ETHER);
 
 			debug!(
-				"{time} | Sold {base_amount} {base_asset} for {quote_asset} | Priced at {price}"
+				"{time} | Sold {base_amount} {base_asset} for {quote_asset} | Priced at {price}",
 			);
+			trace!("{:#?}", order);
 		}
 	}
 

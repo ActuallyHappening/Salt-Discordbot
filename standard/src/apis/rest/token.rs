@@ -16,7 +16,9 @@ pub struct TokenData {
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InnerTokenData {
-	pub id: String,
+	/// ERC20 address
+	#[serde(rename = "id")]
+	pub addr: Address,
 	pub name: String,
 	pub symbol: String,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
