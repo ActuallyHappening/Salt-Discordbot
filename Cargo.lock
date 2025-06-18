@@ -4074,6 +4074,7 @@ dependencies = [
  "color-eyre",
  "reqwest",
  "serde",
+ "serde_json",
  "time",
  "tokio",
  "tracing",

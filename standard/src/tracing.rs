@@ -26,7 +26,7 @@ pub fn install_tracing(
 		.with(filter_layer)
 		.with(fmt_layer)
 		.with(ErrorLayer::default())
-		.init();
+		.try_init()?;
 
 	color_eyre::install()?;
 

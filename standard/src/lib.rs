@@ -1,9 +1,14 @@
 use alloy::primitives::{Address, address};
 
 pub mod prelude {
+	pub(crate) use alloy::primitives::{Address, address};
 	pub(crate) use color_eyre::{eyre::WrapErr as _, eyre::eyre};
 	pub(crate) use tracing::{debug, error, info, trace, warn};
+	pub(crate) use url::Url;
 }
+
+#[path = "tracing.rs"]
+pub(crate) mod app_tracing;
 
 // sell my SST to USDC
 // https://shannon-explorer.somnia.network/tx/0x367e088caf50e0d2ef3f7fe8fd0ce45ddc044107d1876c6b18dd31baef8b5a5e
@@ -26,8 +31,10 @@ pub mod apis {
 		#![allow(unused)]
 		//! https://learn.standardweb3.com/apps/spot/for-developers/rest-api
 
-		use crate::prelude::*;
+		use crate::{app_tracing, prelude::*};
 
+		use alloy::primitives::ruint::aliases::U256;
+		use color_eyre::Section;
 		use serde::de::DeserializeOwned;
 		use std::borrow::Borrow;
 		use url::Url;
@@ -64,31 +71,35 @@ pub mod apis {
 					url_path.push(segment.borrow());
 				}
 				drop(url_path);
-				self.client
+				let resp = self
+					.client
 					.get(url)
 					.send()
 					.await
-					.wrap_err("Couldn't get {url}")?
-					.json()
-					.await
+					.wrap_err("Couldn't get {url}")?;
+				let str = resp.text().await.wrap_err("Body not text")?;
+				serde_json::from_str(&str)
 					.wrap_err("Couldn't deserialize")
+					.note(format!("Original response: {str}"))
 			}
 		}
 
 		pub mod exchange {
-			use alloy::primitives::Address;
+			use alloy::primitives::{Address, Bytes};
 
-			use crate::apis::rest::StandardRestApi;
+			use crate::prelude::*;
+			use crate::{apis::rest::StandardRestApi, app_tracing};
 
-			#[derive(serde::Deserialize)]
+			#[derive(serde::Deserialize, Debug, Clone)]
 			#[serde(rename_all = "camelCase")]
 			pub struct ExchangeData {
-				id: String,
-				bytecode: String,
-				deployer: Address,
-				total_day_buckets: u64,
-				total_week_buckets: u64,
-				total_month_buckets: u64,
+				pub id: String,
+				pub bytecode: Bytes,
+				/// OrderbookFactory
+				pub deployer: Address,
+				pub total_day_buckets: u64,
+				pub total_week_buckets: u64,
+				pub total_month_buckets: u64,
 			}
 
 			impl StandardRestApi {
@@ -97,8 +108,21 @@ pub mod apis {
 					self.get(["api", "exchange"]).await
 				}
 			}
+
+			#[tokio::test]
+			async fn standard_rest_exchange_data() -> color_eyre::Result<()> {
+				app_tracing::install_tracing("info").ok();
+
+				let client = StandardRestApi::default();
+				let data = client.get_exchange_data().await?;
+				info!(?data);
+
+				Ok(())
+			}
 		}
-	}
+
+		pub mod token;
+}
 }
 
 pub mod abis {
