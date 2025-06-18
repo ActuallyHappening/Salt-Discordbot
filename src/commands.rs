@@ -12,7 +12,10 @@ pub fn public_commands() -> Vec<twilight_model::application::command::Command> {
 pub fn admin_commands() -> Vec<twilight_model::application::command::Command> {
 	// let mut public = public_commands();
 	let mut public = vec![];
-	public.extend([admin::AdminCommand::create_command().into()]);
+	public.extend([
+		admin::AdminCommand::create_command().into(),
+		standard::SomniaStandardCommand::create_command().into(),
+	]);
 	public
 }
 
@@ -27,9 +30,11 @@ pub async fn handle_command(
 		// "orders-list" => orders::OrdersListCommand::handle(state.clone(), interaction, data).await,
 		"salt-faucet" => faucet::FaucetCommand::handle(state.get(), interaction, data).await,
 		"admin" => admin::AdminCommand::handle(state.get(), interaction, data).await,
+		"somnia-standard" => standard::SomniaStandardCommand::handle(state.get(), interaction, data).await,
 		name => bail!("unknown command: {}", name),
 	}
 }
 
 mod admin;
 mod faucet;
+mod standard;

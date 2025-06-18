@@ -16,6 +16,9 @@ pub const USDC: Address = address!("0x0ED782B8079529f7385c3eDA9fAf1EaA0DbC6a17")
 /// https://somnia-testnet-ponder-v5.standardweb3.com/api/token/0xb35a7935F8fbc52fB525F16Af09329b3794E8C42
 pub const WSOL: Address = address!("0xb35a7935F8fbc52fB525F16Af09329b3794E8C42");
 
+/// https://somnia-testnet-ponder-v5.standardweb3.com/api/token/0x54597df4E4A6385B77F39d458Eb75443A8f9Aa9e
+pub const WBTC: Address = address!("0x54597df4E4A6385B77F39d458Eb75443A8f9Aa9e");
+
 // wss://somnia-testnet-websocket-v5.standardweb3.com/
 // https://learn.standardweb3.com/apps/spot/for-developers/websocket-streams
 

@@ -70,7 +70,7 @@ async fn discord_info(
 		Some(user) => user,
 		None => {
 			let data = InteractionResponseDataBuilder::new()
-				.content("Not called as a /slash command? `interaction.member` not received\nThis data is used to ratelimit discord users")
+				.content("Not called as a /slash command? `interaction.member` not received\nThis data is required to use this command")
 				.build();
 			let response = InteractionResponse {
 				kind: InteractionResponseType::ChannelMessageWithSource,
