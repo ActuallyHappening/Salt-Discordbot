@@ -35,7 +35,7 @@ async fn main() -> color_eyre::Result<()> {
 		.wallet(signer.clone())
 		.connect("https://dream-rpc.somnia.network/")
 		.await?;
-	let usdc = ERC20::new(standard::USDC, provider);
+	let usdc = ERC20::new(standard_sdk::USDC, provider);
 
 	let name = usdc.name().call().await?;
 	let my_balance = usdc.balanceOf(signer.address()).call().await?;
