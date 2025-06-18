@@ -1,6 +1,7 @@
 use time::{UtcOffset, macros::format_description};
 use tracing_subscriber::fmt::time::OffsetTime;
 
+#[allow(unused)]
 pub fn install_tracing(
 	default_env_filter: impl std::borrow::Borrow<str>,
 ) -> color_eyre::Result<()> {

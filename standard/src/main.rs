@@ -182,6 +182,7 @@ async fn main() -> color_eyre::Result<()> {
 			ParseUnits::from(usdc.balanceOf(me).call().await?).format_units(decimals.try_into()?);
 		info!(%name, %my_balance, "My USDC balance pre");
 	};
+	#[allow(unused)]
 	if matches!(cli, Cli::BuyEth) {
 		let tx = marketBuyETHCall {
 			base: USDC,
