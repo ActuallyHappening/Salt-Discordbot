@@ -3,7 +3,10 @@ use alloy::{
 	providers::{Provider, ProviderBuilder},
 	signers::local::PrivateKeySigner,
 };
-use standard_sdk::{USDC, abis::matching_engine::MatchingEngine::marketSellETHCall};
+use standard_sdk::{
+	USDC,
+	abis::matching_engine::MatchingEngine::{cancelOrdersCall, marketSellETHCall},
+};
 use tracing::{debug, error, info, trace, warn};
 
 #[path = "tracing.rs"]
@@ -50,37 +53,50 @@ async fn main() -> color_eyre::Result<()> {
 	let my_balance = usdc.balanceOf(me).call().await?;
 	info!(?name, ?my_balance, "My USDC balance pre");
 
-	// let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
-	// 	standard_sdk::CONTRACT_ADDRESS,
-	// 	&provider,
-	// );
-	// let tx = marketSellETHCall {
-	// 	quote: USDC,
-	// 	isMaker: true,
-	// 	n: 20,
-	// 	recipient: me,
-	// 	slippageLimit: 10000000,
-	// };
-	// let amount_sst_to_sell = parse_ether("0.01")?;
-	// let pending = matching_engine
-	// 	.marketSellETH(tx.quote, tx.isMaker, tx.n, tx.recipient, tx.slippageLimit)
-	// 	.value(amount_sst_to_sell)
-	// 	.send()
-	// 	.await?;
-	// let receipt = pending.get_receipt().await?;
-	// let url = format!(
-	// 	"https://shannon-explorer.somnia.network/tx/{}",
-	// 	receipt.transaction_hash
-	// );
-	// info!("Bought some USDC but selling some of my SST: {url}");
+	let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
+		standard_sdk::CONTRACT_ADDRESS,
+		&provider,
+	);
+	{
+		let tx = marketSellETHCall {
+			quote: USDC,
+			isMaker: true,
+			n: 20,
+			recipient: me,
+			slippageLimit: 10000000,
+		};
+		let amount_sst_to_sell = parse_ether("0.01")?;
+		let pending = matching_engine
+			.marketSellETH(tx.quote, tx.isMaker, tx.n, tx.recipient, tx.slippageLimit)
+			.value(amount_sst_to_sell)
+			.send()
+			.await?;
+		let receipt = pending.get_receipt().await?;
+		// let ret = pending.
+		let url = format!(
+			"https://shannon-explorer.somnia.network/tx/{}",
+			receipt.transaction_hash
+		);
+		info!("Bought some USDC but selling some of my SST: {url}");
 
-	// let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
-	// info!(sst, "My native SST balance post");
+		let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
+		info!(sst, "My native SST balance post");
 
-	// let usdc = ERC20::new(standard_sdk::USDC, &provider);
-	// let name = usdc.name().call().await?;
-	// let my_balance = usdc.balanceOf(me).call().await?;
-	// info!(?name, ?my_balance, "My USDC balance post");
+		let usdc = ERC20::new(standard_sdk::USDC, &provider);
+		let name = usdc.name().call().await?;
+		let my_balance = usdc.balanceOf(me).call().await?;
+		info!(?name, ?my_balance, "My USDC balance post");
+
+		let inner = receipt.inner.as_receipt().unwrap().logs.get(0).unwrap();
+		let inner = &inner.inner.data;
+	};
+
+	let tx = cancelOrdersCall {
+		base: todo!(),
+		quote: vec![USDC],
+		isBid: vec![false],
+		orderIds: vec![650],
+	};
 
 	Ok(())
 }

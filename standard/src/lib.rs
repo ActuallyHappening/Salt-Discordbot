@@ -4,7 +4,6 @@ pub mod prelude {
 	pub use tracing::{debug, error, info, trace, warn};
 }
 
-pub const CONTRACT_ADDRESS: Address = address!("0x44e7525cf9d56733d08fc98bcd750d504fce91ec");
 
 // sell my SST to USDC
 // https://shannon-explorer.somnia.network/tx/0x367e088caf50e0d2ef3f7fe8fd0ce45ddc044107d1876c6b18dd31baef8b5a5e
@@ -25,6 +24,8 @@ pub const WBTC: Address = address!("0x54597df4E4A6385B77F39d458Eb75443A8f9Aa9e")
 pub mod abis {
 	pub mod matching_engine {
 		use alloy::sol;
+		
+		pub const CONTRACT_ADDRESS: Address = address!("0x44e7525cf9d56733d08fc98bcd750d504fce91ec");
 		
 		sol! {
 			#[sol(rpc, abi)]
