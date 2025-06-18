@@ -11,6 +11,7 @@ use standard_sdk::{
 			self,
 			MatchingEngine::{self, cancelOrdersCall, marketBuyETHCall, marketSellETHCall},
 		},
+		orderbook::Orderbook,
 		orderbook_factory::OrderbookFactory,
 	},
 	apis::rest::StandardRestApi,
@@ -88,7 +89,17 @@ async fn main() -> color_eyre::Result<()> {
 		let engine_addr = orderbook_factory.engine().call().await?;
 		info!(?engine_addr);
 
-		// matching_engine.
+		let pair = standard_sdk::abis::orderbook_factory::IOrderbookFactory::Pair {
+			base: address!("0x4a3bc48c156384f9564fd65a53a2f3d534d8f2b7"),
+			quote: address!("0x0ed782b8079529f7385c3eda9faf1eaa0dbc6a17"),
+		};
+		let orderbook_addr = orderbook_factory
+			.getPair(pair.base, pair.quote)
+			.call()
+			.await?;
+		info!(?orderbook_addr);
+
+		let orderbook = Orderbook::new(orderbook_addr, &provider);
 	}
 	{
 		// order history using REST API
@@ -117,7 +128,10 @@ async fn main() -> color_eyre::Result<()> {
 			debug!(
 				"{time} | Sold {base_amount} {base_asset} for {quote_asset} | Priced at {price}",
 			);
-			trace!("{:#?}", order);
+			// trace!("{:#?}", order);
+			// let base = &order.base.addr;
+			// let quote = &order.quote.addr;
+			// trace!(?base, ?quote);
 		}
 	}
 
