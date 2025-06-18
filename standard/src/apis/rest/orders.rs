@@ -11,17 +11,19 @@ use crate::{
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
-	pub id: String,
 	pub is_bid: bool,
+	pub order_id: u128,
 	pub base: InnerTokenData,
 	pub quote: InnerTokenData,
-	pub pair: String,
-	pub orderbook: Address,
+	pub base_symbol: String,
+	pub quote_symbol: String,
+	pub pair: Address,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub price: U256,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub amount: U256,
-	pub placed: u128,
+	#[serde(deserialize_with = "u256_from_radix_ether")]
+	pub placed: U256,
 	pub timestamp: u128,
 	pub account: Address,
 	pub tx_hash: TxHash,
