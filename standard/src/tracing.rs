@@ -14,7 +14,7 @@ pub fn install_tracing(
 	});
 	let timer = OffsetTime::new(
 		offset,
-		format_description!("[hour]:[minute]:[second] [offset_hour]"),
+		format_description!("[hour]:[minute]:[second] +[offset_hour]"),
 	);
 
 	let fmt_layer = fmt::layer().with_target(true).with_timer(timer);

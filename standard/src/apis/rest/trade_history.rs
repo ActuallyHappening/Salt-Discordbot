@@ -23,8 +23,8 @@ impl StandardRestApi {
 			"api",
 			"tradehistory",
 			&address.to_string(),
-			&page_size.get().to_string(),
-			&page.get().to_string(),
+			&page_size.to_string(),
+			&page.to_string(),
 		])
 		.await
 	}

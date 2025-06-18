@@ -1,6 +1,7 @@
 use std::num::NonZero;
 
 use alloy::primitives::{TxHash, U256};
+use time::OffsetDateTime;
 
 use super::u256_from_radix_ether;
 use crate::{
@@ -22,11 +23,14 @@ pub struct Order {
 	pub price: U256,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub amount: U256,
+	
 	/// Only appears null in histories, maybe this is a timestamp?
 	#[serde(default)]
 	// #[serde(deserialize_with = "u256_from_radix_ether")]
 	pub placed: Option<String>,
-	pub timestamp: u128,
+	
+	#[serde(with = "time::serde::timestamp")]
+	pub timestamp: OffsetDateTime,
 	pub account: Address,
 	pub tx_hash: TxHash,
 }

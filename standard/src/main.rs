@@ -12,6 +12,7 @@ use standard_sdk::{
 	apis::rest::StandardRestApi,
 	prelude::*,
 };
+use time::UtcOffset;
 use tracing::{debug, error, info, trace, warn};
 
 #[path = "tracing.rs"]
@@ -71,6 +72,35 @@ async fn main() -> color_eyre::Result<()> {
 		let my_balance =
 			ParseUnits::from(usdc.balanceOf(me).call().await?).format_units(decimals.try_into()?);
 		info!(%name, %my_balance, "My USDC balance pre");
+	}
+	{
+		// order history
+		let history = rest_api
+			.get_account_trade_history_page(me, u16!(10), u16!(1))
+			.await?
+			.trade_histories;
+		let time_formatter = time::macros::format_description!(
+			"[day]/[month]/[year] [hour]:[minute]:[second] +[offset_hour]"
+		);
+		let offset = UtcOffset::current_local_offset().unwrap_or_else(|err| {
+			::tracing::warn!(message = "Couldn't find local time offset", ?err);
+			UtcOffset::UTC
+		});
+		for order in history {
+			let time = order.timestamp.to_offset(offset).format(&time_formatter)?;
+
+			let base_asset = order.base.name;
+			let base_amount =
+				ParseUnits::from(order.amount).format_units(order.base.decimals.try_into()?);
+
+			let quote_asset = order.quote.name;
+
+			let price = ParseUnits::from(order.price).format_units(Unit::ETHER);
+
+			debug!(
+				"{time} | Sold {base_amount} {base_asset} for {quote_asset} | Priced at {price}"
+			);
+		}
 	}
 
 	let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
