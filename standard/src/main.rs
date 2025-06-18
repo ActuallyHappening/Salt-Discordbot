@@ -1,4 +1,9 @@
-use alloy::{providers::ProviderBuilder, signers::local::PrivateKeySigner};
+use alloy::{
+	primitives::utils::{ParseUnits, Unit, parse_ether},
+	providers::{Provider, ProviderBuilder},
+	signers::local::PrivateKeySigner,
+};
+use standard_sdk::{USDC, abis::matching_engine::MatchingEngine::marketSellETHCall};
 use tracing::{debug, error, info, trace, warn};
 
 #[path = "tracing.rs"]
@@ -31,16 +36,51 @@ async fn main() -> color_eyre::Result<()> {
 
 	let private_key = include_str!("private-key");
 	let signer: PrivateKeySigner = private_key.parse()?;
+	let me = signer.address();
 	let provider = ProviderBuilder::new()
 		.wallet(signer.clone())
 		.connect("https://dream-rpc.somnia.network/")
 		.await?;
-	let usdc = ERC20::new(standard_sdk::USDC, provider);
 
+	let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
+	info!(sst, "My native SST balance pre");
+
+	let usdc = ERC20::new(standard_sdk::USDC, &provider);
 	let name = usdc.name().call().await?;
-	let my_balance = usdc.balanceOf(signer.address()).call().await?;
+	let my_balance = usdc.balanceOf(me).call().await?;
+	info!(?name, ?my_balance, "My USDC balance pre");
 
-	info!(?name, ?my_balance);
+	// let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
+	// 	standard_sdk::CONTRACT_ADDRESS,
+	// 	&provider,
+	// );
+	// let tx = marketSellETHCall {
+	// 	quote: USDC,
+	// 	isMaker: true,
+	// 	n: 20,
+	// 	recipient: me,
+	// 	slippageLimit: 10000000,
+	// };
+	// let amount_sst_to_sell = parse_ether("0.01")?;
+	// let pending = matching_engine
+	// 	.marketSellETH(tx.quote, tx.isMaker, tx.n, tx.recipient, tx.slippageLimit)
+	// 	.value(amount_sst_to_sell)
+	// 	.send()
+	// 	.await?;
+	// let receipt = pending.get_receipt().await?;
+	// let url = format!(
+	// 	"https://shannon-explorer.somnia.network/tx/{}",
+	// 	receipt.transaction_hash
+	// );
+	// info!("Bought some USDC but selling some of my SST: {url}");
+
+	// let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
+	// info!(sst, "My native SST balance post");
+
+	// let usdc = ERC20::new(standard_sdk::USDC, &provider);
+	// let name = usdc.name().call().await?;
+	// let my_balance = usdc.balanceOf(me).call().await?;
+	// info!(?name, ?my_balance, "My USDC balance post");
 
 	Ok(())
 }
