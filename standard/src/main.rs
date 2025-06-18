@@ -6,7 +6,9 @@ use alloy::{
 use clap::Parser;
 use standard_sdk::{
 	USDC,
-	abis::matching_engine::MatchingEngine::{cancelOrdersCall, marketSellETHCall},
+	abis::matching_engine::MatchingEngine::{
+		cancelOrdersCall, marketBuyETHCall, marketSellETHCall,
+	},
 	apis::rest::StandardRestApi,
 	prelude::*,
 };
@@ -38,7 +40,8 @@ alloy::sol! {
 #[derive(clap::Parser, Debug)]
 enum Cli {
 	Read,
-	Do,
+	SellEth,
+	BuyEth,
 }
 
 #[tokio::main]
@@ -57,25 +60,30 @@ async fn main() -> color_eyre::Result<()> {
 		.await?;
 	let rest_api = StandardRestApi::default();
 
-	let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
-	info!(sst, "My native SST balance pre");
-
-	let usdc = ERC20::new(standard_sdk::USDC, &provider);
-	let name = usdc.name().call().await?;
-	let my_balance = usdc.balanceOf(me).call().await?;
-	info!(?name, ?my_balance, "My USDC balance pre");
+	{
+		let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);
+		info!(%sst, "My native SST balance pre");
+	}
+	{
+		let usdc = ERC20::new(standard_sdk::USDC, &provider);
+		let name = usdc.name().call().await?;
+		let decimals = usdc.decimals().call().await?;
+		let my_balance =
+			ParseUnits::from(usdc.balanceOf(me).call().await?).format_units(decimals.try_into()?);
+		info!(%name, %my_balance, "My USDC balance pre");
+	}
 
 	let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
 		standard_sdk::abis::matching_engine::CONTRACT_ADDRESS,
 		&provider,
 	);
-	if matches!(cli, Cli::Do) {
+	if matches!(cli, Cli::SellEth) {
 		let tx = marketSellETHCall {
 			quote: USDC,
 			isMaker: true,
-			n: 20,
+			n: 5,
 			recipient: me,
-			slippageLimit: 10000000,
+			slippageLimit: 10u32.pow(5),
 		};
 		let amount_sst_to_sell = parse_ether("0.01")?;
 		let pending = matching_engine
@@ -96,9 +104,26 @@ async fn main() -> color_eyre::Result<()> {
 
 		let usdc = ERC20::new(standard_sdk::USDC, &provider);
 		let name = usdc.name().call().await?;
-		let my_balance = usdc.balanceOf(me).call().await?;
-		info!(?name, ?my_balance, "My USDC balance post");
+		let decimals = usdc.decimals().call().await?;
+		let my_balance =
+			ParseUnits::from(usdc.balanceOf(me).call().await?).format_units(decimals.try_into()?);
+		info!(%name, %my_balance, "My USDC balance pre");
 	};
+	if matches!(cli, Cli::BuyEth) {
+		let tx = marketBuyETHCall {
+			base: USDC,
+			isMaker: true,
+			n: 5,
+			recipient: me,
+			slippageLimit: 10u32.pow(5),
+		};
+		let usdc_decimals: Unit = ERC20::new(USDC, provider)
+			.decimals()
+			.call()
+			.await?
+			.try_into()?;
+		let amount_usdc_to_sell = ParseUnits::parse_units("0.01", usdc_decimals)?.get_absolute();
+	}
 
 	let orders_page = rest_api.get_orders_page(me, u16!(10), u16!(1)).await?;
 	info!(?orders_page);

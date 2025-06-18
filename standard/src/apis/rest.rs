@@ -48,6 +48,8 @@ impl StandardRestApi {
 			.await
 			.wrap_err("Couldn't get {url}")?;
 		let str = resp.text().await.wrap_err("Body not text")?;
+		let json: serde_json::Value = serde_json::from_str(&str)?;
+		let str = serde_json::to_string_pretty(&json)?;
 		{
 			// write to data.json
 			let path = "/home/ah/Desktop/Salt-Discordbot/standard/src/data.json";
@@ -55,13 +57,14 @@ impl StandardRestApi {
 		}
 		serde_json::from_str(&str)
 			.wrap_err("Couldn't deserialize a get request")
-			.note(format!("Original response: {str}"))
+			// .note(format!("Original response: {str}"))
 	}
 }
 
 pub mod exchange;
 pub mod orders;
 pub mod token;
+pub mod trade_history;
 
 /// From a base 10 string encoding of a large number
 pub(crate) fn u256_from_radix_wei<'de, D>(deserializer: D) -> Result<U256, D::Error>

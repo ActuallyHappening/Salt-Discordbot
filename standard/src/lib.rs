@@ -6,6 +6,7 @@ pub mod prelude {
 	pub(crate) use tracing::{debug, error, info, trace, warn};
 	pub(crate) use url::Url;
 	pub use ::nonzero_lit::*;
+	pub use core::num::NonZero;
 }
 
 #[path = "tracing.rs"]

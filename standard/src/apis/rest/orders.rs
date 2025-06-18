@@ -22,8 +22,10 @@ pub struct Order {
 	pub price: U256,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub amount: U256,
+	/// Only appears null in histories, maybe this is a timestamp?
+	#[serde(default)]
 	#[serde(deserialize_with = "u256_from_radix_ether")]
-	pub placed: U256,
+	pub placed: Option<U256>,
 	pub timestamp: u128,
 	pub account: Address,
 	pub tx_hash: TxHash,
