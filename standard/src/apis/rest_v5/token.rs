@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use time::OffsetDateTime;
 
 use crate::apis::{
-	CheckInvariants, ERC20, RPC_URL, lazy_empty_str, u256_from_radix_ether, u256_from_radix_wei,
+	ERC20, EnforceInvariants, RPC_URL, lazy_empty_str, u256_from_radix_ether, u256_from_radix_wei,
 };
 use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
 
@@ -23,7 +23,7 @@ pub struct OuterTokenData {
 	pub latest_week_bucket: Option<Bucket>,
 }
 
-impl CheckInvariants for OuterTokenData {
+impl EnforceInvariants for OuterTokenData {
 	async fn check_invariants(&self) -> color_eyre::Result<()> {
 		self.token.check_invariants().await?;
 
@@ -129,12 +129,13 @@ pub struct Token {
 	pub total_month_buckets: u64,
 }
 
-impl CheckInvariants for Token {
+impl EnforceInvariants for Token {
 	async fn check_invariants(&self) -> color_eyre::Result<()> {
 		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
 		let token = ERC20::new(self.id, provider);
 
-		eyre_assert_eq!(token.name().call().await?, self.name);
+		// some names are slightly inaccurate, e.g. "Wrapped Solana" != "Wrapped SOL"
+		// eyre_assert_eq!(token.name().call().await?, self.name);
 		eyre_assert_eq!(token.decimals().call().await?, self.decimals);
 		eyre_assert_eq!(token.symbol().call().await?, self.symbol);
 

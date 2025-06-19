@@ -1,7 +1,7 @@
 #![allow(unused)]
 //! https://learn.standardweb3.com/apps/spot/for-developers/rest-api
 
-use crate::{apis::CheckInvariants, app_tracing, prelude::*};
+use crate::{apis::EnforceInvariants, app_tracing, prelude::*};
 
 use alloy::primitives::{ruint::aliases::U256, utils::parse_ether};
 use color_eyre::Section;
@@ -32,7 +32,7 @@ impl StandardRestApi_v5 {
 		path: impl IntoIterator<Item = impl Borrow<str>>,
 	) -> color_eyre::Result<T>
 	where
-		T: DeserializeOwned + CheckInvariants,
+		T: DeserializeOwned + EnforceInvariants,
 	{
 		let mut url = self.base.clone();
 		let mut url_path = url
@@ -57,16 +57,16 @@ impl StandardRestApi_v5 {
 			std::fs::write(path, &str).unwrap();
 		}
 		let data: T = serde_json::from_str(&str).wrap_err("Couldn't deserialize a get request")?;
-		
+
 		data.check_invariants().await?;
-		
+
 		Ok(data)
 	}
 }
 
 // pub mod exchange;
 // pub mod order_history;
-// pub mod orders;
+pub mod orders;
 // pub mod pairs;
 pub mod token;
 // pub mod trade_history;

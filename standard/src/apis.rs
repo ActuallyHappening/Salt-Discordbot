@@ -5,7 +5,7 @@ pub mod rest_v5;
 
 const RPC_URL: &str = "https://dream-rpc.somnia.network/";
 
-pub trait CheckInvariants {
+pub trait EnforceInvariants {
 	async fn check_invariants(&self) -> color_eyre::Result<()>;
 }
 

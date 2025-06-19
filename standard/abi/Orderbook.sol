@@ -3,6 +3,9 @@ library ExchangeOrderbook {
 }
 
 interface IOrderbook {
+	/// LOOK AT THIS
+	function mktPrice() external view returns (uint256);
+	
     function initialize(uint256 id_, address base_, address quote_, address engine_) external;
     function setLmp(uint256 price) external;
     function placeAsk(address owner, uint256 price, uint256 amount) external returns (uint32 id, bool foundDmt);
@@ -18,16 +21,17 @@ interface IOrderbook {
     function askHead() external view returns (uint256);
     function bidHead() external view returns (uint256);
     function orderHead(bool isBid, uint256 price) external view returns (uint32);
-    function mktPrice() external view returns (uint256);
     function getPrices(bool isBid, uint32 n) external view returns (uint256[] memory);
     function nextPrice(bool isBid, uint256 price) external view returns (uint256 next);
     function nextOrder(bool isBid, uint256 price, uint32 orderId) external view returns (uint32 next);
     function sfpop(bool isBid, uint256 price, uint32 orderId, bool isHead) external view returns (uint32 id, uint256 required, bool clear);
     function getPricesPaginated(bool isBid, uint32 start, uint32 end) external view returns (uint256[] memory);
+    
     function getOrderIds(bool isBid, uint256 price, uint32 n) external view returns (uint32[] memory);
     function getOrders(bool isBid, uint256 price, uint32 n) external view returns (ExchangeOrderbook.Order[] memory);
     function getOrdersPaginated(bool isBid, uint256 price, uint32 start, uint32 end) external view returns (ExchangeOrderbook.Order[] memory);
     function getOrder(bool isBid, uint32 orderId) external view returns (ExchangeOrderbook.Order memory);
+    
     function getBaseQuote() external view returns (address base, address quote);
     function assetValue(uint256 amount, bool isBid) external view returns (uint256 converted);
     function isEmpty(bool isBid, uint256 price) external view returns (bool);
