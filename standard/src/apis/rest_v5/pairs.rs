@@ -1,7 +1,12 @@
+use crate::abis::orderbook::Orderbook;
 use crate::apis::rest_v5::token::Token;
-use crate::apis::{EnforceInvariants, u256_from_radix_ether, u256_from_radix_wei};
+use crate::apis::{
+	EnforceInvariants, EnforcementContext, u256_from_radix_ether, u256_from_radix_wei,
+};
 use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
+use alloy::network::Network;
 use alloy::primitives::U256;
+use alloy::providers::Provider;
 use time::OffsetDateTime;
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -14,10 +19,12 @@ pub struct AllPairsPage {
 }
 
 impl EnforceInvariants for AllPairsPage {
-	async fn check_invariants(
-		&self,
-		flags: crate::apis::EnforcementFlags,
-	) -> color_eyre::Result<()> {
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+		EnforcementContext<P>: Clone,
+	{
 		for pair in &self.pairs {
 			pair.check_invariants(flags.clone()).await?;
 		}
@@ -90,10 +97,20 @@ pub struct Pair {
 }
 
 impl EnforceInvariants for Pair {
-	async fn check_invariants(
+	async fn check_invariants<P, N>(
 		&self,
-		flags: crate::apis::EnforcementFlags,
-	) -> color_eyre::Result<()> {
+		flags: crate::apis::EnforcementContext<P>,
+	) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+	{
+		let orderbook = Orderbook::new(self.id, flags.provider);
+		let Orderbook::getBaseQuoteReturn { base, quote } = orderbook.getBaseQuote().call().await?;
+
+		eyre_assert_eq!(base, self.base.id);
+		eyre_assert_eq!(quote, self.quote.id);
+
 		Ok(())
 	}
 }

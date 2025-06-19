@@ -1,13 +1,14 @@
 use std::{error::Error, marker::PhantomData, str::FromStr};
 
+use alloy::network::Network;
 use alloy::primitives::U256;
-use alloy::providers::ProviderBuilder;
+use alloy::providers::{Provider, ProviderBuilder};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 
 use crate::apis::{
-	ERC20, EnforceInvariants, EnforcementFlags, RPC_URL, lazy_empty_str, u256_from_radix_ether,
+	ERC20, EnforceInvariants, EnforcementContext, RPC_URL, lazy_empty_str, u256_from_radix_ether,
 	u256_from_radix_wei,
 };
 use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
@@ -25,7 +26,12 @@ pub struct OuterTokenData {
 }
 
 impl EnforceInvariants for OuterTokenData {
-	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+		EnforcementContext<P>: Clone,
+	{
 		self.token.check_invariants(flags).await?;
 
 		let buckets = [
@@ -131,7 +137,11 @@ pub struct Token {
 }
 
 impl EnforceInvariants for Token {
-	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+	{
 		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
 		let token = ERC20::new(self.id, provider);
 

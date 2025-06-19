@@ -1,24 +1,63 @@
-use alloy::primitives::{U256, utils::parse_ether};
+use alloy::{
+	network::Network,
+	primitives::{U256, utils::parse_ether},
+	providers::{Provider, ProviderBuilder},
+};
 
 // pub mod rest_v4;
 pub mod rest_v5;
 
 const RPC_URL: &str = "https://dream-rpc.somnia.network/";
 
-#[derive(Default, Clone)]
-pub struct EnforcementFlags {
+#[derive(Clone)]
+pub struct EnforcementContext<P> {
 	pub expect_historical_orders: bool,
+	pub provider: P,
 }
 
-impl EnforcementFlags {
+impl<P> EnforcementContext<P> {
 	pub fn expecting_historical_orders(mut self) -> Self {
 		self.expect_historical_orders = true;
 		self
 	}
 }
 
+impl
+	EnforcementContext<
+		alloy::providers::fillers::FillProvider<
+			alloy::providers::fillers::JoinFill<
+				alloy::providers::Identity,
+				alloy::providers::fillers::JoinFill<
+					alloy::providers::fillers::GasFiller,
+					alloy::providers::fillers::JoinFill<
+						alloy::providers::fillers::BlobGasFiller,
+						alloy::providers::fillers::JoinFill<
+							alloy::providers::fillers::NonceFiller,
+							alloy::providers::fillers::ChainIdFiller,
+						>,
+					>,
+				>,
+			>,
+			alloy::providers::RootProvider,
+		>,
+	>
+{
+	pub async fn new() -> color_eyre::Result<Self> {
+		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
+		Ok(Self {
+			expect_historical_orders: false,
+			provider,
+		})
+	}
+}
+
+#[allow(async_fn_in_trait)]
 pub trait EnforceInvariants {
-	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()>;
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+		EnforcementContext<P>: Clone;
 }
 
 // Generate the contract bindings for the ERC20 interface.

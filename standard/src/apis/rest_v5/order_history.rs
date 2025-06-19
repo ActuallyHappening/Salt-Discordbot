@@ -1,6 +1,8 @@
+use alloy::{network::Network, providers::Provider};
+
 use crate::{
 	apis::{
-		EnforceInvariants, EnforcementFlags,
+		EnforceInvariants, EnforcementContext,
 		rest_v5::{StandardRestApi_v5, orders::Order},
 	},
 	prelude::*,
@@ -16,12 +18,15 @@ pub struct OrderHistoryPage {
 }
 
 impl EnforceInvariants for OrderHistoryPage {
-	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+		EnforcementContext<P>: Clone,
+	{
 		let flags = flags.expecting_historical_orders();
 		for order in &self.order_histories {
-			order
-				.check_invariants(flags.clone())
-				.await?;
+			order.check_invariants(flags.clone()).await?;
 		}
 		Ok(())
 	}

@@ -1,15 +1,16 @@
 use std::num::NonZero;
 
 use alloy::{
+	network::Network,
 	primitives::{TxHash, U256},
-	providers::ProviderBuilder,
+	providers::{Provider, ProviderBuilder},
 };
 use time::OffsetDateTime;
 
 use crate::{
 	abis::orderbook::{ExchangeOrderbook, Orderbook},
 	apis::{
-		EnforceInvariants, EnforcementFlags, RPC_URL,
+		EnforceInvariants, EnforcementContext, RPC_URL,
 		rest_v5::{StandardRestApi_v5, token::Token},
 		u256_from_radix_ether,
 	},
@@ -47,7 +48,12 @@ pub struct Order {
 }
 
 impl EnforceInvariants for Order {
-	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+		EnforcementContext<P>: Clone,
+	{
 		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
 		let orderbook = Orderbook::new(self.pair, provider);
 		let ExchangeOrderbook::Order {
@@ -96,7 +102,12 @@ pub struct OuterOrdersPage {
 }
 
 impl EnforceInvariants for OuterOrdersPage {
-	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+	async fn check_invariants<P, N>(&self, flags: EnforcementContext<P>) -> color_eyre::Result<()>
+	where
+		P: Provider<N>,
+		N: Network,
+		EnforcementContext<P>: Clone,
+	{
 		for order in &self.orders {
 			order.check_invariants(flags.clone()).await?;
 		}

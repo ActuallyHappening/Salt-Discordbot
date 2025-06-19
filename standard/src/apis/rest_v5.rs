@@ -2,7 +2,7 @@
 //! https://learn.standardweb3.com/apps/spot/for-developers/rest-api
 
 use crate::{
-	apis::{EnforceInvariants, EnforcementFlags},
+	apis::{EnforceInvariants, EnforcementContext},
 	app_tracing,
 	prelude::*,
 };
@@ -62,7 +62,8 @@ impl StandardRestApi_v5 {
 		}
 		let data: T = serde_json::from_str(&str).wrap_err("Couldn't deserialize a get request")?;
 
-		data.check_invariants(EnforcementFlags::default()).await?;
+		let flags = EnforcementContext::new().await?;
+		data.check_invariants(flags).await?;
 
 		Ok(data)
 	}
