@@ -103,48 +103,48 @@ async fn main() -> color_eyre::Result<()> {
 		let last_market_price = orderbook.lmp().call().await?;
 		info!(?last_market_price);
 	}
-	{
-		// order history using REST API
-		let mut history = vec![];
-		history.extend(
-			rest_api
-				.get_account_trade_history_page(me, u16!(3), u16!(1))
-				.await?
-				.trade_histories,
-		);
-		history.extend(
-			rest_api
-				.get_account_trade_history_page(me, u16!(3), u16!(2))
-				.await?
-				.trade_histories,
-		);
-		let time_formatter = time::macros::format_description!(
-			"[day]/[month]/[year] [hour]:[minute]:[second] +[offset_hour]"
-		);
-		let offset = UtcOffset::current_local_offset().unwrap_or_else(|err| {
-			::tracing::warn!(message = "Couldn't find local time offset", ?err);
-			UtcOffset::UTC
-		});
-		for order in history {
-			let time = order.timestamp.to_offset(offset).format(&time_formatter)?;
+	// {
+	// 	// order history using REST API
+	// 	let mut history = vec![];
+	// 	history.extend(
+	// 		rest_api
+	// 			.get_account_trade_history_page(me, u16!(3), u16!(1))
+	// 			.await?
+	// 			.trade_histories,
+	// 	);
+	// 	history.extend(
+	// 		rest_api
+	// 			.get_account_trade_history_page(me, u16!(3), u16!(2))
+	// 			.await?
+	// 			.trade_histories,
+	// 	);
+	// 	let time_formatter = time::macros::format_description!(
+	// 		"[day]/[month]/[year] [hour]:[minute]:[second] +[offset_hour]"
+	// 	);
+	// 	let offset = UtcOffset::current_local_offset().unwrap_or_else(|err| {
+	// 		::tracing::warn!(message = "Couldn't find local time offset", ?err);
+	// 		UtcOffset::UTC
+	// 	});
+	// 	for order in history {
+	// 		let time = order.timestamp.to_offset(offset).format(&time_formatter)?;
 
-			let base_asset = &order.base.name;
-			let base_amount =
-				ParseUnits::from(order.amount).format_units(order.base.decimals.try_into()?);
+	// 		let base_asset = &order.base.name;
+	// 		let base_amount =
+	// 			ParseUnits::from(order.amount).format_units(order.base.decimals.try_into()?);
 
-			let quote_asset = &order.quote.name;
+	// 		let quote_asset = &order.quote.name;
 
-			let price = ParseUnits::from(order.price).format_units(Unit::ETHER);
+	// 		let price = ParseUnits::from(order.price).format_units(Unit::ETHER);
 
-			debug!(
-				"{time} | Sold {base_amount} {base_asset} for {quote_asset} | Priced at {price}",
-			);
-			// trace!("{:#?}", order);
-			// let base = &order.base.addr;
-			// let quote = &order.quote.addr;
-			// trace!(?base, ?quote);
-		}
-	}
+	// 		debug!(
+	// 			"{time} | Sold {base_amount} {base_asset} for {quote_asset} | Priced at {price}",
+	// 		);
+	// 		// trace!("{:#?}", order);
+	// 		// let base = &order.base.addr;
+	// 		// let quote = &order.quote.addr;
+	// 		// trace!(?base, ?quote);
+	// 	}
+	// }
 
 	let matching_engine = standard_sdk::abis::matching_engine::MatchingEngine::new(
 		standard_sdk::abis::matching_engine::CONTRACT_ADDRESS,
@@ -199,8 +199,8 @@ async fn main() -> color_eyre::Result<()> {
 		let amount_usdc_to_sell = ParseUnits::parse_units("0.01", usdc_decimals)?.get_absolute();
 	}
 
-	let orders_page = rest_api.get_orders_page(me, u16!(10), u16!(1)).await?;
-	info!(?orders_page);
+	// let orders_page = rest_api.get_orders_page(me, u16!(10), u16!(1)).await?;
+	// info!(?orders_page);
 
 	// let tx = cancelOrdersCall {
 	// 	base: todo!(),

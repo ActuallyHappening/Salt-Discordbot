@@ -1,6 +1,7 @@
 use alloy::primitives::{Address, address};
 
 pub mod prelude {
+	pub(crate) use crate::eyre_assertions::*;
 	pub use ::nonzero_lit::*;
 	pub use alloy::primitives::{Address, address};
 	pub(crate) use color_eyre::{eyre::WrapErr as _, eyre::eyre};
@@ -28,6 +29,6 @@ pub const WBTC: Address = address!("0x54597df4E4A6385B77F39d458Eb75443A8f9Aa9e")
 // wss://somnia-testnet-websocket-v5.standardweb3.com/
 // https://learn.standardweb3.com/apps/spot/for-developers/websocket-streams
 
-pub mod apis;
-
 pub mod abis;
+pub mod apis;
+pub(crate) mod eyre_assertions;

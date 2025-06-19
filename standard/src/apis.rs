@@ -9,6 +9,26 @@ pub trait CheckInvariants {
 	async fn check_invariants(&self) -> color_eyre::Result<()>;
 }
 
+// Generate the contract bindings for the ERC20 interface.
+alloy::sol! {
+	// The `rpc` attribute enables contract interaction via the provider.
+	#[sol(rpc, abi)]
+	contract ERC20 {
+		function name() public view returns (string);
+		function symbol() public view returns (string);
+		function decimals() public view returns (uint8);
+		function totalSupply() public view returns (uint256);
+		function balanceOf(address account) public view returns (uint256);
+		function transfer(address recipient, uint256 amount) public returns (bool);
+		function allowance(address owner, address spender) public view returns (uint256);
+		function approve(address spender, uint256 amount) public returns (bool);
+		function transferFrom(address sender, address recipient, uint256 amount) public returns (bool);
+
+		event Transfer(address indexed from, address indexed to, uint256 value);
+		event Approval(address indexed owner, address indexed spender, uint256 value);
+	}
+}
+
 /// From a base 10 string encoding of a large number
 pub(crate) fn u256_from_radix_wei<'de, D>(deserializer: D) -> Result<U256, D::Error>
 where

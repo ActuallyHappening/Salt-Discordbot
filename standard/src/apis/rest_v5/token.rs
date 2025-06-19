@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use time::OffsetDateTime;
 
 use crate::apis::{
-	CheckInvariants, RPC_URL, lazy_empty_str, u256_from_radix_ether, u256_from_radix_wei,
+	CheckInvariants, ERC20, RPC_URL, lazy_empty_str, u256_from_radix_ether, u256_from_radix_wei,
 };
 use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
 
@@ -26,6 +26,18 @@ pub struct OuterTokenData {
 impl CheckInvariants for OuterTokenData {
 	async fn check_invariants(&self) -> color_eyre::Result<()> {
 		self.token.check_invariants().await?;
+
+		let buckets = [
+			&self.latest_day_bucket,
+			&self.latest_hour_bucket,
+			&self.latest_min_bucket,
+			&self.latest_month_bucket,
+			&self.latest_week_bucket,
+		];
+		for bucket in buckets.iter().filter_map(|bucket| bucket.as_ref()) {
+			eyre_assert_eq!(bucket.token, self.token.id);
+		}
+
 		Ok(())
 	}
 }
@@ -120,6 +132,12 @@ pub struct Token {
 impl CheckInvariants for Token {
 	async fn check_invariants(&self) -> color_eyre::Result<()> {
 		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
+		let token = ERC20::new(self.id, provider);
+
+		eyre_assert_eq!(token.name().call().await?, self.name);
+		eyre_assert_eq!(token.decimals().call().await?, self.decimals);
+		eyre_assert_eq!(token.symbol().call().await?, self.symbol);
+
 		Ok(())
 	}
 }
