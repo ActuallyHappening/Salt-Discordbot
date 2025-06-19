@@ -5,7 +5,7 @@ pub mod rest_v5;
 
 const RPC_URL: &str = "https://dream-rpc.somnia.network/";
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 pub struct EnforcementFlags {
 	pub expect_historical_orders: bool,
 }

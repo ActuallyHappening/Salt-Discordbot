@@ -20,7 +20,7 @@ impl EnforceInvariants for OrderHistoryPage {
 		let flags = flags.expecting_historical_orders();
 		for order in &self.order_histories {
 			order
-				.check_invariants(flags)
+				.check_invariants(flags.clone())
 				.await?;
 		}
 		Ok(())

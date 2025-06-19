@@ -79,8 +79,8 @@ impl EnforceInvariants for Order {
 		// eyre_assert_eq!(base, self.base.id);
 		// eyre_assert_eq!(quote, self.quote.id);
 
-		self.base.check_invariants(flags).await?;
-		self.quote.check_invariants(flags).await?;
+		self.base.check_invariants(flags.clone()).await?;
+		self.quote.check_invariants(flags.clone()).await?;
 
 		Ok(())
 	}
@@ -98,7 +98,7 @@ pub struct OuterOrdersPage {
 impl EnforceInvariants for OuterOrdersPage {
 	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
 		for order in &self.orders {
-			order.check_invariants(flags).await?;
+			order.check_invariants(flags.clone()).await?;
 		}
 		Ok(())
 	}
