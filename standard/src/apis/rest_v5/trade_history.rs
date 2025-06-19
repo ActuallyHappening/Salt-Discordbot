@@ -1,5 +1,5 @@
 use crate::{
-	apis::rest::{StandardRestApi, orders::Order},
+	apis::rest_v5::{StandardRestApi_v5, orders::Order},
 	prelude::*,
 };
 
@@ -12,7 +12,7 @@ pub struct TradeHistoryPage {
 	pub page_size: u16,
 }
 
-impl StandardRestApi {
+impl StandardRestApi_v5 {
 	pub async fn get_account_trade_history_page(
 		&self,
 		address: Address,
@@ -34,7 +34,7 @@ impl StandardRestApi {
 async fn standard_account_trade_history_page() -> color_eyre::Result<()> {
 	crate::app_tracing::install_tracing("info").ok();
 
-	let client = StandardRestApi::default();
+	let client = StandardRestApi_v5::default();
 	let example = address!("0x385f8c5A2AF2Fbd503D55AB78d614BF0578dDbe0");
 	let trade_history_page = client
 		.get_account_trade_history_page(example, u16!(10), u16!(1))

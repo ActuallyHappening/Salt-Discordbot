@@ -14,7 +14,7 @@ use standard_sdk::{
 		orderbook::Orderbook,
 		orderbook_factory::OrderbookFactory,
 	},
-	apis::rest::StandardRestApi,
+	apis::rest_v5::StandardRestApi_v5,
 	prelude::*,
 };
 use time::UtcOffset;
@@ -64,7 +64,7 @@ async fn main() -> color_eyre::Result<()> {
 		.wallet(signer.clone())
 		.connect("https://dream-rpc.somnia.network/")
 		.await?;
-	let rest_api = StandardRestApi::default();
+	let rest_api = StandardRestApi_v5::default();
 
 	{
 		let sst = ParseUnits::from(provider.get_balance(me).await?).format_units(Unit::ETHER);

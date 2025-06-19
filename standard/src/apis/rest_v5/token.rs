@@ -4,21 +4,20 @@ use alloy::primitives::U256;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{apis::rest::StandardRestApi, prelude::*};
-use super::u256_from_radix_ether;
+use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
+use crate::apis::u256_from_radix_ether;
 
 #[derive(serde::Deserialize, Debug, Clone)]
-pub struct TokenData {
-	pub token: InnerTokenData,
+pub struct OuterTokenData {
+	pub token: Token,
 }
 
 /// https://learn.standardweb3.com/apps/spot/for-developers/rest-api#get-api-token-address
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct InnerTokenData {
+pub struct Token {
 	/// ERC20 address
-	#[serde(rename = "id")]
-	pub addr: Address,
+	pub id: Address,
 	pub name: String,
 	pub symbol: String,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
@@ -43,8 +42,8 @@ pub struct InnerTokenData {
 }
 
 /// https://learn.standardweb3.com/apps/spot/for-developers/rest-api#get-api-token-address
-impl StandardRestApi {
-	pub async fn get_token_data(&self, address: Address) -> color_eyre::Result<TokenData> {
+impl StandardRestApi_v5 {
+	pub async fn get_token_data(&self, address: Address) -> color_eyre::Result<OuterTokenData> {
 		self.get(["api", "token", &address.to_string()]).await
 	}
 }
@@ -53,7 +52,7 @@ impl StandardRestApi {
 async fn standard_rest_get_token_data() -> color_eyre::Result<()> {
 	crate::app_tracing::install_tracing("info").ok();
 
-	let client = StandardRestApi::default();
+	let client = StandardRestApi_v5::default();
 	let examples = [crate::USDC, crate::WBTC, crate::WSOL];
 	for example in examples {
 		let token_data = client.get_token_data(example).await?;

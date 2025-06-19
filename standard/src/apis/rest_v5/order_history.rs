@@ -1,4 +1,4 @@
-use crate::{apis::rest::{orders::Order, StandardRestApi}, prelude::*};
+use crate::{apis::rest_v5::{orders::Order, StandardRestApi_v5}, prelude::*};
 
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -9,7 +9,7 @@ pub struct OrderHistoryPage {
 	pub total_pages: u16,
 }
 
-impl StandardRestApi {
+impl StandardRestApi_v5 {
 	/// https://learn.standardweb3.com/apps/spot/for-developers/rest-api#get-api-orderhistory-address-pagesize-page
 	pub async fn get_account_order_history_page(
 		&self,
@@ -32,7 +32,7 @@ impl StandardRestApi {
 async fn standard_rest_order_history_page() -> color_eyre::Result<()> {
 	crate::app_tracing::install_test_tracing();
 
-	let client = StandardRestApi::default();
+	let client = StandardRestApi_v5::default();
 	let example = address!("0x385f8c5A2AF2Fbd503D55AB78d614BF0578dDbe0");
 	let page = client
 		.get_account_order_history_page(example, u16!(10), u16!(1))

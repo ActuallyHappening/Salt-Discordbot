@@ -3,9 +3,9 @@ use std::num::NonZero;
 use alloy::primitives::{TxHash, U256};
 use time::OffsetDateTime;
 
-use super::u256_from_radix_ether;
 use crate::{
-	apis::rest::{StandardRestApi, token::InnerTokenData},
+	apis::rest_v5::{StandardRestApi_v5, token::Token},
+	apis::u256_from_radix_ether,
 	prelude::*,
 };
 
@@ -14,8 +14,8 @@ use crate::{
 pub struct Order {
 	pub is_bid: bool,
 	pub order_id: u128,
-	pub base: InnerTokenData,
-	pub quote: InnerTokenData,
+	pub base: Token,
+	pub quote: Token,
 	pub base_symbol: String,
 	pub quote_symbol: String,
 	pub pair: Address,
@@ -23,17 +23,17 @@ pub struct Order {
 	pub price: U256,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub amount: U256,
-	
+
 	/// Only appears null in histories, maybe this is a timestamp?
 	#[serde(default)]
 	// #[serde(deserialize_with = "u256_from_radix_ether")]
 	pub placed: Option<String>,
-	
+
 	#[serde(with = "time::serde::timestamp")]
 	pub timestamp: OffsetDateTime,
 	pub account: Address,
 	pub tx_hash: TxHash,
-	
+
 	/// Is true when looking at order history
 	#[serde(default)]
 	pub closed: bool,
@@ -48,7 +48,7 @@ pub struct GetOrdersPage {
 	pub page_size: u16,
 }
 
-impl StandardRestApi {
+impl StandardRestApi_v5 {
 	pub async fn get_orders_page(
 		&self,
 		address: Address,
@@ -70,7 +70,7 @@ impl StandardRestApi {
 async fn standard_rest_get_orders_page() -> color_eyre::Result<()> {
 	crate::app_tracing::install_tracing("info").ok();
 
-	let client = StandardRestApi::default();
+	let client = StandardRestApi_v5::default();
 	let example_address = address!("0x385f8c5A2AF2Fbd503D55AB78d614BF0578dDbe0");
 	let page = client
 		.get_orders_page(example_address, u16!(10), u16!(1))
