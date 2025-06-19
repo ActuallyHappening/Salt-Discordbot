@@ -33,3 +33,9 @@ pub fn install_tracing(
 
 	Ok(())
 }
+
+#[cfg(test)]
+#[allow(unused)]
+pub fn install_test_tracing() {
+	install_tracing("info").ok();
+}

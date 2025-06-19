@@ -29,14 +29,16 @@ impl StandardRestApi {
 }
 
 #[tokio::test]
-async fn standard_rest_order_history_page() {
-	crate::app_tracing::install_tracing("info").ok();
+async fn standard_rest_order_history_page() -> color_eyre::Result<()> {
+	crate::app_tracing::install_test_tracing();
 
 	let client = StandardRestApi::default();
 	let example = address!("0x385f8c5A2AF2Fbd503D55AB78d614BF0578dDbe0");
 	let page = client
 		.get_account_order_history_page(example, u16!(10), u16!(1))
-		.await;
+		.await?;
 
 	info!(?page);
+	
+	Ok(())
 }

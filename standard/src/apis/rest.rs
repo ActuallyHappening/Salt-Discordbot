@@ -55,17 +55,17 @@ impl StandardRestApi {
 			let path = "/home/ah/Desktop/Salt-Discordbot/standard/src/data.json";
 			std::fs::write(path, &str).unwrap();
 		}
-		serde_json::from_str(&str)
-			.wrap_err("Couldn't deserialize a get request")
-			// .note(format!("Original response: {str}"))
+		serde_json::from_str(&str).wrap_err("Couldn't deserialize a get request")
+		// .note(format!("Original response: {str}"))
 	}
 }
 
 pub mod exchange;
+pub mod order_history;
 pub mod orders;
+pub mod pairs;
 pub mod token;
 pub mod trade_history;
-pub mod order_history;
 
 /// From a base 10 string encoding of a large number
 pub(crate) fn u256_from_radix_wei<'de, D>(deserializer: D) -> Result<U256, D::Error>
