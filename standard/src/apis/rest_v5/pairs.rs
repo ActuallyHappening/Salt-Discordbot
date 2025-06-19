@@ -1,57 +1,75 @@
 use crate::apis::rest_v5::token::Token;
-use crate::apis::u256_from_radix_ether;
+use crate::apis::{EnforceInvariants, u256_from_radix_ether, u256_from_radix_wei};
 use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
 use alloy::primitives::U256;
 use time::OffsetDateTime;
 
-impl StandardRestApi_v5 {
-	pub async fn get_all_pairs_page(
-		&self,
-		page_size: NonZero<u16>,
-		page: NonZero<u16>,
-	) -> color_eyre::Result<serde_json::Value> {
-		self.get(["api", "pairs", &page.to_string(), &page_size.to_string()])
-			.await
-	}
-}
+// impl StandardRestApi_v5 {
+// 	pub async fn get_all_pairs_page(
+// 		&self,
+// 		page_size: NonZero<u16>,
+// 		page: NonZero<u16>,
+// 	) -> color_eyre::Result<serde_json::Value> {
+// 		self.get(["api", "pairs", &page.to_string(), &page_size.to_string()])
+// 			.await
+// 	}
+// }
 
-#[tokio::test]
-async fn standard_rest_all_pairs_page() -> color_eyre::Result<()> {
-	crate::app_tracing::install_test_tracing();
+// #[tokio::test]
+// async fn standard_rest_all_pairs_page() -> color_eyre::Result<()> {
+// 	crate::app_tracing::install_test_tracing();
 
-	let client = StandardRestApi_v5::default();
-	let page = client.get_all_pairs_page(u16!(10), u16!(1)).await?;
+// 	let client = StandardRestApi_v5::default();
+// 	let page = client.get_all_pairs_page(u16!(10), u16!(1)).await?;
 
-	info!(?page);
+// 	info!(?page);
 
-	Ok(())
-}
+// 	Ok(())
+// }
 
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PairData {
-	// #[serde(deserialize_with = "u256_from_radix_ether")]
-	pub ath: f64,
-	pub atl: f64,
-	pub b_decimal: u8,
-	pub base: Token,
-	/// Orderbook
+	/// ERC20 address
 	pub id: Address,
-	pub quote: Token,
-	/// e.g. SST/USDC
-	pub description: String,
 	/// e.g. SST/USDC
 	pub symbol: String,
 	/// e.g. SST/USDC
 	pub ticker: String,
-	#[serde(rename = "type")]
-	pub market_type: String,
-	/// idk
-	pub trades_count: Option<serde_json::Value>,
-	/// e.g. Standard
-	pub exchange: String,
+	/// e.g. SST/USDC
+	pub description: String,
 	#[serde(with = "time::serde::timestamp")]
 	pub listing_date: OffsetDateTime,
+
+	pub quote: Token,
+	pub base: Token,
+
+	#[serde(deserialize_with = "u256_from_radix_ether")]
+	pub price: U256,
+
+	#[serde(deserialize_with = "u256_from_radix_ether")]
+	#[serde(rename = "ath")]
+	pub all_time_high: U256,
+	#[serde(deserialize_with = "u256_from_radix_ether")]
+	#[serde(rename = "atl")]
+	pub all_time_low: U256,
+	// #[serde(deserialize_with = "u256_from_radix_wei")]
+	// pub trades_count: U256,
+
+	pub total_day_buckets: u64,
+	pub total_min_buckets: u64,
+	pub total_hour_buckets: u64,
+	pub total_week_buckets: u64,
+	pub total_month_buckets: u64,
+}
+
+impl EnforceInvariants for PairData {
+	async fn check_invariants(
+		&self,
+		flags: crate::apis::EnforcementFlags,
+	) -> color_eyre::Result<()> {
+		Ok(())
+	}
 }
 
 impl StandardRestApi_v5 {

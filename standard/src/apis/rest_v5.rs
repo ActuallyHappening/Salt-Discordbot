@@ -71,6 +71,6 @@ impl StandardRestApi_v5 {
 pub mod exchange;
 pub mod order_history;
 pub mod orders;
-// pub mod pairs;
+pub mod pairs;
 pub mod token;
 // pub mod trade_history;
