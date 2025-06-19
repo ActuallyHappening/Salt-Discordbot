@@ -54,32 +54,10 @@ impl EnforceInvariants for Order {
 		N: Network,
 		EnforcementContext<P>: Clone,
 	{
-		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
-		let orderbook = Orderbook::new(self.pair, provider);
-		let ExchangeOrderbook::Order {
-			owner,
-			price,
-			depositAmount,
-		} = orderbook
-			.getOrder(self.is_bid, self.order_id)
-			.call()
-			.await?;
+		let orderbook = Orderbook::new(self.pair, &flags.provider);
 
-		// let lmp = orderbook.lmp().call().await?;
-		// let ask_head = orderbook.askHead().call().await?;
-		// let bid_head = orderbook.bidHead().call().await?;
-
-		// warn!(?owner, ?price, ?depositAmount, ?self.pair, ?lmp, ?ask_head, ?bid_head);
-
-		if owner == Address::ZERO {
-			if !flags.expect_historical_orders {
-				warn!(?owner, ?self.account, "Noticing that the order with id {} isn't still live on the blockchain", self.order_id);
-			}
-		} else {
-			eyre_assert_eq!(owner, self.account);
-			eyre_assert_eq!(price, self.price);
-		}
-
+		// orderIDs are re-used, so fetching from blockchain will give random stuff
+		
 		let Orderbook::getBaseQuoteReturn { base, quote } = orderbook.getBaseQuote().call().await?;
 
 		// eyre_assert_eq!(base, self.base.id);

@@ -32,8 +32,7 @@ impl EnforceInvariants for ExchangeData {
 			trace!(?self.id, "Unrecognised id");
 		}
 
-		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
-		let orderbook_factory = OrderbookFactory::new(self.deployer, provider);
+		let orderbook_factory = OrderbookFactory::new(self.deployer, &flags.provider);
 
 		eyre_assert_eq!(orderbook_factory.engine().call().await?, CONTRACT_ADDRESS);
 

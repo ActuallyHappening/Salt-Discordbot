@@ -142,8 +142,7 @@ impl EnforceInvariants for Token {
 		P: Provider<N>,
 		N: Network,
 	{
-		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
-		let token = ERC20::new(self.id, provider);
+		let token = ERC20::new(self.id, &flags.provider);
 
 		// some names are slightly inaccurate, e.g. "Wrapped Solana" != "Wrapped SOL"
 		// eyre_assert_eq!(token.name().call().await?, self.name);
