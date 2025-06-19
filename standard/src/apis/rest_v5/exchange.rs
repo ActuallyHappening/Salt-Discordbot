@@ -1,11 +1,16 @@
 use alloy::primitives::{Address, Bytes};
+use alloy::providers::ProviderBuilder;
 
+use crate::abis::matching_engine::CONTRACT_ADDRESS;
+use crate::abis::orderbook_factory::OrderbookFactory;
+use crate::apis::{EnforceInvariants, RPC_URL};
 use crate::prelude::*;
 use crate::{apis::rest_v5::StandardRestApi_v5, app_tracing};
 
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExchangeData {
+	/// e.g. standard-exchange
 	pub id: String,
 	pub bytecode: Bytes,
 	/// OrderbookFactory
@@ -13,6 +18,26 @@ pub struct ExchangeData {
 	pub total_day_buckets: u64,
 	pub total_week_buckets: u64,
 	pub total_month_buckets: u64,
+}
+
+impl EnforceInvariants for ExchangeData {
+	async fn check_invariants(&self) -> color_eyre::Result<()> {
+		if &self.id != "standard-exchange" {
+			trace!(?self.id, "Unrecognised id");
+		}
+
+		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
+		let orderbook_factory = OrderbookFactory::new(self.deployer, provider);
+
+		eyre_assert_eq!(orderbook_factory.engine().call().await?, CONTRACT_ADDRESS);
+		
+		let version = orderbook_factory.version().call().await?;
+		if version != 0 {
+			warn!(?version, "Unknown orderbook factory version");
+		}
+
+		Ok(())
+	}
 }
 
 impl StandardRestApi_v5 {

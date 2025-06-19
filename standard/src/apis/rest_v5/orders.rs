@@ -132,16 +132,16 @@ async fn standard_rest_get_orders_page() -> color_eyre::Result<()> {
 	Ok(())
 }
 
-#[tokio::test]
-async fn testing() -> color_eyre::Result<()> {
-	crate::app_tracing::install_test_tracing();
+// #[tokio::test]
+// async fn testing() -> color_eyre::Result<()> {
+// 	crate::app_tracing::install_test_tracing();
 
-	let path = "/home/ah/Desktop/Salt-Discordbot/standard/src/data.json";
-	let str = std::fs::read_to_string(path)?;
+// 	let path = "/home/ah/Desktop/Salt-Discordbot/standard/src/data.json";
+// 	let str = std::fs::read_to_string(path)?;
 
-	let data: OuterOrdersPage = serde_json::from_str(&str)?;
+// 	let data: OuterOrdersPage = serde_json::from_str(&str)?;
 
-	data.check_invariants().await?;
+// 	data.check_invariants().await?;
 
-	Ok(())
-}
+// 	Ok(())
+// }

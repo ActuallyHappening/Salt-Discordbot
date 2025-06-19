@@ -64,7 +64,7 @@ impl StandardRestApi_v5 {
 	}
 }
 
-// pub mod exchange;
+pub mod exchange;
 // pub mod order_history;
 pub mod orders;
 // pub mod pairs;

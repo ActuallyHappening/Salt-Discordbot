@@ -137,10 +137,10 @@ impl EnforceInvariants for Token {
 		// some names are slightly inaccurate, e.g. "Wrapped Solana" != "Wrapped SOL"
 		// eyre_assert_eq!(token.name().call().await?, self.name);
 		if token.name().call().await? != self.name {
-			warn!(
+			debug!(
 				help = %"This is an external offchain inaccuracy",
 				?self.id,
-				"Token name mismatch: {} (ERC20) != {} (offchain API)",
+				"Token name mismatch: \"{}\" (ERC20) != \"{}\" (offchain API)",
 				token.name().call().await?,
 				self.name
 			);
@@ -149,11 +149,11 @@ impl EnforceInvariants for Token {
 		// some symbols are simplified (making my life more complicated)
 		// eyre_assert_eq!(token.symbol().call().await?, self.symbol);
 		if token.symbol().call().await? != self.symbol {
-			warn!(
+			debug!(
 				help = %"This is an external offchain inaccuracy",
 				note = %"In the SST/WSTT this blurs the line between ERC20 and native currency",
 				?self.id,
-				"Token symbol mismatch: {} (ERC20) != {} (offchain API)",
+				"Token symbol mismatch: \"{}\" (ERC20) != \"{}\" (offchain API)",
 				token.symbol().call().await?,
 				self.symbol
 			);

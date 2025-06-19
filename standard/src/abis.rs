@@ -22,8 +22,8 @@ pub mod orderbook_factory {
 		sol,
 	};
 
-	/// I think this may be tied to a specific matching engine
-	pub const ORDERBOOK_FACTORY: Address = address!("0x49Db83347C9e420D4CE58359b4f189Dd5ED20c35");
+	// /// This is a hard-coded address, get it from the MatchingEngine smart contract
+	// pub const ORDERBOOK_FACTORY: Address = address!("0x49Db83347C9e420D4CE58359b4f189Dd5ED20c35");
 
 	sol! {
 		#[sol(rpc, abi)]
