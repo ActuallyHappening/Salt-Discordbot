@@ -33,6 +33,10 @@ pub struct Order {
 	pub timestamp: OffsetDateTime,
 	pub account: Address,
 	pub tx_hash: TxHash,
+	
+	/// Is true when looking at order history
+	#[serde(default)]
+	pub closed: bool,
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]

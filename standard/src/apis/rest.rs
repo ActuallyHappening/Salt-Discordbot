@@ -65,6 +65,7 @@ pub mod exchange;
 pub mod orders;
 pub mod token;
 pub mod trade_history;
+pub mod order_history;
 
 /// From a base 10 string encoding of a large number
 pub(crate) fn u256_from_radix_wei<'de, D>(deserializer: D) -> Result<U256, D::Error>
