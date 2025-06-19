@@ -26,6 +26,8 @@ pub struct Order {
 	#[serde(with = "time::serde::timestamp")]
 	pub timestamp: OffsetDateTime,
 	pub order_id: u32,
+	#[serde(deserialize_with = "u256_from_radix_ether")]
+	pub amount: U256,
 
 	pub base: Token,
 	pub quote: Token,
@@ -57,7 +59,7 @@ impl EnforceInvariants for Order {
 		let orderbook = Orderbook::new(self.pair, &flags.provider);
 
 		// orderIDs are re-used, so fetching from blockchain will give random stuff
-		
+
 		let Orderbook::getBaseQuoteReturn { base, quote } = orderbook.getBaseQuote().call().await?;
 
 		// eyre_assert_eq!(base, self.base.id);
