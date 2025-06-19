@@ -16,7 +16,7 @@ pub struct EnforcementContext<P> {
 }
 
 impl<P> EnforcementContext<P> {
-	pub fn expecting_historical_orders(mut self) -> Self {
+	pub fn expect_historical_orders(mut self) -> Self {
 		self.expect_historical_orders = true;
 		self
 	}

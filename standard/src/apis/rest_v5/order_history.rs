@@ -24,7 +24,7 @@ impl EnforceInvariants for OrderHistoryPage {
 		N: Network,
 		EnforcementContext<P>: Clone,
 	{
-		let flags = flags.expecting_historical_orders();
+		let flags = flags.expect_historical_orders();
 		for order in &self.order_histories {
 			order.check_invariants(flags.clone()).await?;
 		}

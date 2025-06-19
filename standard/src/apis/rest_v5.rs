@@ -74,4 +74,4 @@ pub mod order_history;
 pub mod orders;
 pub mod pairs;
 pub mod token;
-// pub mod trade_history;
+pub mod trade_history;

@@ -1,5 +1,8 @@
 use crate::{
-	apis::rest_v5::{StandardRestApi_v5, orders::Order},
+	apis::{
+		EnforceInvariants,
+		rest_v5::{StandardRestApi_v5, orders::Order},
+	},
 	prelude::*,
 };
 
@@ -10,6 +13,24 @@ pub struct TradeHistoryPage {
 	pub total_count: u16,
 	pub total_pages: u16,
 	pub page_size: u16,
+}
+
+impl EnforceInvariants for TradeHistoryPage {
+	async fn check_invariants<P, N>(
+		&self,
+		flags: crate::apis::EnforcementContext<P>,
+	) -> color_eyre::Result<()>
+	where
+		P: alloy::providers::Provider<N>,
+		N: alloy::network::Network,
+		crate::apis::EnforcementContext<P>: Clone,
+	{
+		let flags = flags.expect_historical_orders();
+		for trade in &self.trade_histories {
+			trade.check_invariants(flags.clone()).await?;
+		}
+		Ok(())
+	}
 }
 
 impl StandardRestApi_v5 {
