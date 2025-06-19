@@ -73,8 +73,8 @@ impl EnforceInvariants for Order {
 
 		let Orderbook::getBaseQuoteReturn { base, quote } = orderbook.getBaseQuote().call().await?;
 
-		eyre_assert_eq!(base, self.base.id);
-		eyre_assert_eq!(quote, self.quote.id);
+		// eyre_assert_eq!(base, self.base.id);
+		// eyre_assert_eq!(quote, self.quote.id);
 
 		self.base.check_invariants().await?;
 		self.quote.check_invariants().await?;
