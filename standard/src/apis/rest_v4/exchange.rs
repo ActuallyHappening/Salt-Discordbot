@@ -1,5 +1,6 @@
 use alloy::primitives::{Address, Bytes};
 
+use crate::apis::CheckInvariants;
 use crate::prelude::*;
 use crate::{apis::rest_v4::StandardRestApi_v4, app_tracing};
 
@@ -14,6 +15,12 @@ pub struct ExchangeData {
 	pub total_day_buckets: u64,
 	pub total_week_buckets: u64,
 	pub total_month_buckets: u64,
+}
+
+impl CheckInvariants for ExchangeData {
+	async fn check_invariants(&self) -> color_eyre::Result<()> {
+		Ok(())
+	}
 }
 
 impl StandardRestApi_v4 {

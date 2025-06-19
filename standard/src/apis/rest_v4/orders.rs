@@ -4,8 +4,11 @@ use alloy::primitives::{TxHash, U256};
 use time::OffsetDateTime;
 
 use crate::{
-	apis::rest_v4::{StandardRestApi_v4, token::Token},
-	apis::u256_from_radix_ether,
+	apis::{
+		CheckInvariants,
+		rest_v4::{StandardRestApi_v4, token::Token},
+		u256_from_radix_ether,
+	},
 	prelude::*,
 };
 
@@ -19,7 +22,7 @@ pub struct Order {
 
 	pub base: Token,
 	pub quote: Token,
-	
+
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub placed: U256,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
@@ -44,6 +47,12 @@ pub struct GetOrdersPage {
 	pub total_count: u16,
 	pub total_pages: u16,
 	pub page_size: u16,
+}
+
+impl CheckInvariants for GetOrdersPage {
+	async fn check_invariants(&self) -> color_eyre::Result<()> {
+		Ok(())
+	}
 }
 
 impl StandardRestApi_v4 {

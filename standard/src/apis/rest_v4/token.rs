@@ -1,11 +1,12 @@
 use std::{error::Error, marker::PhantomData, str::FromStr};
 
 use alloy::primitives::U256;
+use alloy::providers::ProviderBuilder;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 
-use crate::apis::{lazy_empty_str, u256_from_radix_ether};
+use crate::apis::{lazy_empty_str, u256_from_radix_ether, u256_from_radix_wei, CheckInvariants, RPC_URL};
 use crate::{apis::rest_v4::StandardRestApi_v4, prelude::*};
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -18,6 +19,13 @@ pub struct OuterTokenData {
 	pub latest_min_bucket: Option<Bucket>,
 	pub latest_month_bucket: Option<Bucket>,
 	pub latest_week_bucket: Option<Bucket>,
+}
+
+impl CheckInvariants for OuterTokenData {
+	async fn check_invariants(&self) -> color_eyre::Result<()> {
+		self.token.check_invariants().await?;
+		Ok(())
+	}
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -94,6 +102,8 @@ pub struct Token {
 
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub total_supply: U256,
+	#[serde(deserialize_with = "u256_from_radix_wei")]
+	pub trades_count: U256,
 
 	#[serde(rename = "priceUSD")]
 	pub price_usd: f64,
@@ -103,6 +113,13 @@ pub struct Token {
 	pub total_hour_buckets: u64,
 	pub total_week_buckets: u64,
 	pub total_month_buckets: u64,
+}
+
+impl CheckInvariants for Token {
+	async fn check_invariants(&self) -> color_eyre::Result<()> {
+		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
+		Ok(())
+	}
 }
 
 /// https://learn.standardweb3.com/apps/spot/for-developers/rest-api#get-api-token-address

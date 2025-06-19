@@ -1,7 +1,13 @@
-use alloy::primitives::{utils::parse_ether, U256};
+use alloy::primitives::{U256, utils::parse_ether};
 
 pub mod rest_v4;
 pub mod rest_v5;
+
+const RPC_URL: &str = "https://dream-rpc.somnia.network/";
+
+pub trait CheckInvariants {
+	async fn check_invariants(&self) -> color_eyre::Result<()>;
+}
 
 /// From a base 10 string encoding of a large number
 pub(crate) fn u256_from_radix_wei<'de, D>(deserializer: D) -> Result<U256, D::Error>
