@@ -1,6 +1,6 @@
 use alloy::primitives::{U256, utils::parse_ether};
 
-pub mod rest_v4;
+// pub mod rest_v4;
 pub mod rest_v5;
 
 const RPC_URL: &str = "https://dream-rpc.somnia.network/";
