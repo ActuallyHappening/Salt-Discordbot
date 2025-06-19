@@ -1,4 +1,10 @@
-use crate::{apis::rest_v5::{orders::Order, StandardRestApi_v5}, prelude::*};
+use crate::{
+	apis::{
+		EnforceInvariants, EnforcementFlags,
+		rest_v5::{StandardRestApi_v5, orders::Order},
+	},
+	prelude::*,
+};
 
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -7,6 +13,17 @@ pub struct OrderHistoryPage {
 	pub page_size: u16,
 	pub total_count: u16,
 	pub total_pages: u16,
+}
+
+impl EnforceInvariants for OrderHistoryPage {
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+		for order in &self.order_histories {
+			order
+				.check_invariants(flags.expecting_historical_orders())
+				.await?;
+		}
+		Ok(())
+	}
 }
 
 impl StandardRestApi_v5 {
@@ -39,6 +56,6 @@ async fn standard_rest_order_history_page() -> color_eyre::Result<()> {
 		.await?;
 
 	info!(?page);
-	
+
 	Ok(())
 }

@@ -9,7 +9,7 @@ use time::OffsetDateTime;
 use crate::{
 	abis::orderbook::{ExchangeOrderbook, Orderbook},
 	apis::{
-		EnforceInvariants, RPC_URL,
+		EnforceInvariants, EnforcementFlags, RPC_URL,
 		rest_v5::{StandardRestApi_v5, token::Token},
 		u256_from_radix_ether,
 	},
@@ -29,8 +29,9 @@ pub struct Order {
 	pub base: Token,
 	pub quote: Token,
 
-	#[serde(deserialize_with = "u256_from_radix_ether")]
-	pub placed: U256,
+	// #[serde(deserialize_with = "u256_from_radix_ether")]
+	#[serde(default)]
+	pub placed: Option<serde_json::Number>,
 	#[serde(deserialize_with = "u256_from_radix_ether")]
 	pub price: U256,
 
@@ -46,7 +47,7 @@ pub struct Order {
 }
 
 impl EnforceInvariants for Order {
-	async fn check_invariants(&self) -> color_eyre::Result<()> {
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
 		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
 		let orderbook = Orderbook::new(self.pair, provider);
 		let ExchangeOrderbook::Order {
@@ -65,7 +66,9 @@ impl EnforceInvariants for Order {
 		// warn!(?owner, ?price, ?depositAmount, ?self.pair, ?lmp, ?ask_head, ?bid_head);
 
 		if owner == Address::ZERO {
-			warn!(?owner, ?self.account, "Noticing that the order with id {} isn't still live on the blockchain", self.order_id);
+			if !flags.expect_historical_orders {
+				warn!(?owner, ?self.account, "Noticing that the order with id {} isn't still live on the blockchain", self.order_id);
+			}
 		} else {
 			eyre_assert_eq!(owner, self.account);
 			eyre_assert_eq!(price, self.price);
@@ -76,8 +79,8 @@ impl EnforceInvariants for Order {
 		// eyre_assert_eq!(base, self.base.id);
 		// eyre_assert_eq!(quote, self.quote.id);
 
-		self.base.check_invariants().await?;
-		self.quote.check_invariants().await?;
+		self.base.check_invariants(flags).await?;
+		self.quote.check_invariants(flags).await?;
 
 		Ok(())
 	}
@@ -93,9 +96,9 @@ pub struct OuterOrdersPage {
 }
 
 impl EnforceInvariants for OuterOrdersPage {
-	async fn check_invariants(&self) -> color_eyre::Result<()> {
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
 		for order in &self.orders {
-			order.check_invariants().await?;
+			order.check_invariants(flags).await?;
 		}
 		Ok(())
 	}

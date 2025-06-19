@@ -3,7 +3,7 @@ use alloy::providers::ProviderBuilder;
 
 use crate::abis::matching_engine::CONTRACT_ADDRESS;
 use crate::abis::orderbook_factory::OrderbookFactory;
-use crate::apis::{EnforceInvariants, RPC_URL};
+use crate::apis::{EnforceInvariants, EnforcementFlags, RPC_URL};
 use crate::prelude::*;
 use crate::{apis::rest_v5::StandardRestApi_v5, app_tracing};
 
@@ -21,7 +21,7 @@ pub struct ExchangeData {
 }
 
 impl EnforceInvariants for ExchangeData {
-	async fn check_invariants(&self) -> color_eyre::Result<()> {
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
 		if &self.id != "standard-exchange" {
 			trace!(?self.id, "Unrecognised id");
 		}
@@ -30,7 +30,7 @@ impl EnforceInvariants for ExchangeData {
 		let orderbook_factory = OrderbookFactory::new(self.deployer, provider);
 
 		eyre_assert_eq!(orderbook_factory.engine().call().await?, CONTRACT_ADDRESS);
-		
+
 		let version = orderbook_factory.version().call().await?;
 		if version != 0 {
 			warn!(?version, "Unknown orderbook factory version");

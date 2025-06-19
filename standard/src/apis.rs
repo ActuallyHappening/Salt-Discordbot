@@ -5,8 +5,20 @@ pub mod rest_v5;
 
 const RPC_URL: &str = "https://dream-rpc.somnia.network/";
 
+#[derive(Default, Clone, Copy)]
+pub struct EnforcementFlags {
+	pub expect_historical_orders: bool,
+}
+
+impl EnforcementFlags {
+	pub fn expecting_historical_orders(mut self) -> Self {
+		self.expect_historical_orders = true;
+		self
+	}
+}
+
 pub trait EnforceInvariants {
-	async fn check_invariants(&self) -> color_eyre::Result<()>;
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()>;
 }
 
 // Generate the contract bindings for the ERC20 interface.

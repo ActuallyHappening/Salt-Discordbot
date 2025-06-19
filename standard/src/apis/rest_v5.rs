@@ -1,7 +1,7 @@
 #![allow(unused)]
 //! https://learn.standardweb3.com/apps/spot/for-developers/rest-api
 
-use crate::{apis::EnforceInvariants, app_tracing, prelude::*};
+use crate::{apis::{EnforceInvariants, EnforcementFlags}, app_tracing, prelude::*};
 
 use alloy::primitives::{ruint::aliases::U256, utils::parse_ether};
 use color_eyre::Section;
@@ -58,14 +58,14 @@ impl StandardRestApi_v5 {
 		}
 		let data: T = serde_json::from_str(&str).wrap_err("Couldn't deserialize a get request")?;
 
-		data.check_invariants().await?;
+		data.check_invariants(EnforcementFlags::default()).await?;
 
 		Ok(data)
 	}
 }
 
 pub mod exchange;
-// pub mod order_history;
+pub mod order_history;
 pub mod orders;
 // pub mod pairs;
 pub mod token;

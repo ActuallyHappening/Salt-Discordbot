@@ -7,7 +7,8 @@ use serde_json::{Value, json};
 use time::OffsetDateTime;
 
 use crate::apis::{
-	ERC20, EnforceInvariants, RPC_URL, lazy_empty_str, u256_from_radix_ether, u256_from_radix_wei,
+	ERC20, EnforceInvariants, EnforcementFlags, RPC_URL, lazy_empty_str, u256_from_radix_ether,
+	u256_from_radix_wei,
 };
 use crate::{apis::rest_v5::StandardRestApi_v5, prelude::*};
 
@@ -24,8 +25,8 @@ pub struct OuterTokenData {
 }
 
 impl EnforceInvariants for OuterTokenData {
-	async fn check_invariants(&self) -> color_eyre::Result<()> {
-		self.token.check_invariants().await?;
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+		self.token.check_invariants(flags).await?;
 
 		let buckets = [
 			&self.latest_day_bucket,
@@ -130,7 +131,7 @@ pub struct Token {
 }
 
 impl EnforceInvariants for Token {
-	async fn check_invariants(&self) -> color_eyre::Result<()> {
+	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
 		let provider = ProviderBuilder::new().connect(RPC_URL).await?;
 		let token = ERC20::new(self.id, provider);
 
