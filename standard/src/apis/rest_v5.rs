@@ -1,7 +1,11 @@
 #![allow(unused)]
 //! https://learn.standardweb3.com/apps/spot/for-developers/rest-api
 
-use crate::{apis::{EnforceInvariants, EnforcementFlags}, app_tracing, prelude::*};
+use crate::{
+	apis::{EnforceInvariants, EnforcementFlags},
+	app_tracing,
+	prelude::*,
+};
 
 use alloy::primitives::{ruint::aliases::U256, utils::parse_ether};
 use color_eyre::Section;
@@ -27,7 +31,7 @@ impl Default for StandardRestApi_v5 {
 }
 
 impl StandardRestApi_v5 {
-	pub async fn get<T>(
+	pub(crate) async fn get<T>(
 		&self,
 		path: impl IntoIterator<Item = impl Borrow<str>>,
 	) -> color_eyre::Result<T>

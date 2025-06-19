@@ -17,9 +17,10 @@ pub struct OrderHistoryPage {
 
 impl EnforceInvariants for OrderHistoryPage {
 	async fn check_invariants(&self, flags: EnforcementFlags) -> color_eyre::Result<()> {
+		let flags = flags.expecting_historical_orders();
 		for order in &self.order_histories {
 			order
-				.check_invariants(flags.expecting_historical_orders())
+				.check_invariants(flags)
 				.await?;
 		}
 		Ok(())
