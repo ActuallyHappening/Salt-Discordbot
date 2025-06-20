@@ -6,6 +6,7 @@ use crate::{
 	prelude::*,
 };
 
+/// paginated
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TradeHistoryPage {
