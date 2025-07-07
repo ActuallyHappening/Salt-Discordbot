@@ -18,8 +18,8 @@ struct ChainLimits {
 	discord_id: HashMap<Id<UserMarker>, Vec<OffsetDateTime>>,
 }
 
-#[test]
-fn chain_limits_serde() {
+#[tokio::test]
+async fn chain_limits_serde() {
 	let toml = r##"
 		123 = { address = {}, discord_id = {}}
 		"##;
@@ -29,7 +29,7 @@ fn chain_limits_serde() {
 		"##;
 	let _: RateLimits = toml::from_str(toml).expect("to deserialize");
 
-	RateLimits::read().expect("to deserialize");
+	RateLimits::read().await.expect("to deserialize");
 }
 
 pub struct Key {
@@ -37,6 +37,45 @@ pub struct Key {
 	pub discord_id: Id<UserMarker>,
 	pub chain_id: u64,
 	pub chain_name: &'static str,
+}
+
+/// Doesn't use u64 as key
+mod ser {
+	use std::collections::HashMap;
+
+	use serde::{Deserialize, Serialize};
+
+	use crate::prelude::*;
+
+	#[derive(Serialize, Deserialize)]
+	pub(crate) struct RateLimits(HashMap<String, super::ChainLimits>);
+
+	impl TryFrom<RateLimits> for super::RateLimits {
+		type Error = color_eyre::Report;
+		fn try_from(value: RateLimits) -> Result<Self, Self::Error> {
+			value
+				.0
+				.into_iter()
+				.map(|(k, v)| {
+					let k: u64 = k.parse().wrap_err("Invalid number key")?;
+					Result::<_, Self::Error>::Ok((k, v))
+				})
+				.collect::<Result<_, Self::Error>>()
+				.map(Self)
+		}
+	}
+
+	impl From<super::RateLimits> for RateLimits {
+		fn from(value: super::RateLimits) -> Self {
+			Self(
+				value
+					.0
+					.into_iter()
+					.map(|(k, v)| (k.to_string(), v))
+					.collect(),
+			)
+		}
+	}
 }
 
 impl RateLimits {
@@ -94,16 +133,16 @@ fn format_date(date: OffsetDateTime) -> String {
 
 /// Simple toml file storage
 impl RateLimits {
-	pub fn read() -> Result<Self> {
+	pub async fn read() -> Result<Self> {
 		let name = Utf8PathBuf::from("ratelimits.toml");
-		let local_path = std::env::current_dir()?.join(&name);
+		let local_path = ystd::env::current_dir().await?.join(&name);
 		let path;
-		if local_path.is_file() {
-			path = locall_path
+		if local_path.is_file().await {
+			path = local_path
 		} else {
 			// try absolute
 			let absolute = Utf8PathBuf::from("/home/ah/Desktop").join(&name);
-			if !absolute.is_file() {
+			if !absolute.is_file().await {
 				bail!("Couldn't find ratelimits.toml in {} or {}", local_path, absolute);
 			}
 			path = absolute;

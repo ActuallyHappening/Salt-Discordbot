@@ -49,7 +49,7 @@ twilight-mention = "0.16.0"
 twilight-model = "0.16.0"
 twilight-util = { version = "0.16.0", features = ["builder"] }
 url = { version = "2.5.4", features = ["serde"] }
-ystd = "0.0.1"
+ystd = "0.0.2"
 
 [build-dependencies]
 color-eyre = "0.6.3"

@@ -46,7 +46,6 @@ pub(super) enum FaucetCommand {
 	// Ratelimits(CheckRatelimits),
 }
 
-mod check;
 mod erc20;
 
 // /// Check all your ratelimits by chain

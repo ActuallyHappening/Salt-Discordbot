@@ -33,9 +33,9 @@ pub async fn main() {
 }
 
 pub async fn start(keep_restarting: Arc<AtomicBool>, shutting_down: Arc<AtomicBool>) -> Result<()> {
-	let env = env::Env::default()?;
+	let env = env::Env::default().await?;
 	let token = env.bot_token.clone();
-	let ratelimits = RateLimits::read()?;
+	let ratelimits = RateLimits::read().await?;
 
 	info!(
 		"Starting discordbot for salt public addresss {}",

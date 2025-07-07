@@ -5452,9 +5452,9 @@ dependencies = [
 
 [[package]]
 name = "ystd"
-version = "0.0.1"
+version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34d4695ccbee7c6a41afe43840149c20f57527842c60f447292da4b3addb7277"
+checksum = "3611096d5c2bd40ff5a59785f2ce1a648501632a94f9366afebead191d48b667"
 dependencies = [
  "camino",
  "color-eyre",
