@@ -1,6 +1,6 @@
-use std::sync::atomic::Ordering;
+use std::{sync::atomic::Ordering, time::Duration};
 
-use crate::{commands::defer, prelude::*};
+use crate::{commands::{defer, respond}, prelude::*};
 use color_eyre::{Section, eyre::Context as _};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
@@ -155,9 +155,12 @@ impl DumpLogs {
 		let file_timestamp = now.format(&format)?;
 		let file_name = format!("{}.{}", crate::app_tracing::PREFIX, file_timestamp);
 		let file_path = Utf8PathBuf::from(crate::app_tracing::LOGS_DIR).join(&file_name);
-		
-		file_path.assert_file().await.wrap_err("Logs file not found")?;
-		
+
+		file_path
+			.assert_file()
+			.await
+			.wrap_err("Logs file not found")?;
+
 		let data = ystd::fs::read(&file_path)
 			.await
 			.wrap_err("Couldn't read log file")?;
@@ -178,20 +181,9 @@ pub(super) struct Kill;
 
 impl Kill {
 	pub async fn handle(&self, state: GlobalStateRef<'_>, interaction: Interaction) {
-		if let Err(err) = state
-			.client
-			.interaction(interaction.application_id)
-			.create_response(
-				interaction.id,
-				&interaction.token,
-				&InteractionResponse {
-					kind: InteractionResponseType::ChannelMessageWithSource,
-					data: Some(InteractionResponseDataBuilder::new()
-						.content("\"A very wise choice, sir, if I may say so. Very good. I'll just nip off and shoot myself.\" The salt discord bot turns and winks at you. \"Don't worry, sir. I'll be very humane.\"\n(adapted from Douglas Adams, Hitch Hiker's Guide to the Galaxy)").build()),
-				},
-			)
-			.await
-		{
+		if let Err(err) = respond(state, &interaction,
+			"\"A very wise choice, sir, if I may say so. Very good. I'll just nip off and shoot myself.\" The salt discord bot turns and winks at you. \"Don't worry, sir. I'll be very humane.\"\n(adapted from Douglas Adams, Hitch Hiker's Guide to the Galaxy)",
+		).await {
 			error!(%err, "Couldn't send discord response before the kill admin command");
 		}
 		state.kill_now.notify_waiters();
@@ -204,7 +196,7 @@ impl PurgeUserRatelimits {
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
 	) -> color_eyre::Result<()> {
-		state.ratelimits.lock().or_poisoned().clear()?;
+		state.ratelimits.lock().await?.clear().await?;
 		if let Err(err) = state
 			.client
 			.interaction(interaction.application_id)

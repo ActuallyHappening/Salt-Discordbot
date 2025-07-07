@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Mutex};
 
-use twilight_model::id::{marker::UserMarker, Id};
+use twilight_model::id::{Id, marker::UserMarker};
 
 use crate::prelude::*;
 
@@ -29,7 +29,10 @@ impl PerUserSpamFilter {
 				lock.remove(&discord_id);
 			}
 			Err(err) => {
-				error!(?discord_id, "Failed to unengage per user spam filter: Mutex is poisoned: {}", err);
+				error!(
+					?discord_id,
+					"Failed to unengage per user spam filter: Mutex is poisoned: {}", err
+				);
 			}
 		}
 	}

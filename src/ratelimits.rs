@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use alloy::primitives::Address;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::sync::Mutex;
 use twilight_model::id::Id;
 use twilight_model::id::marker::UserMarker;
+use ystd::time::FutureTimeoutExt;
 
 use crate::prelude::*;
 
@@ -81,10 +83,12 @@ mod ser {
 impl RateLimits {
 	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
 		self.0.entry(key.chain_id).or_default();
-		self.0
-			.get_mut(&key.chain_id)
-			.unwrap()
-			.check(&OffsetDateTime::now_utc(), key.address, key.discord_id, key.chain_name)
+		self.0.get_mut(&key.chain_id).unwrap().check(
+			&OffsetDateTime::now_utc(),
+			key.address,
+			key.discord_id,
+			key.chain_name,
+		)
 	}
 
 	fn describe(&mut self, discord_id: Id<UserMarker>) -> String {
@@ -98,22 +102,22 @@ impl RateLimits {
 		ret
 	}
 
-	pub fn register(&mut self, key: &Key) -> Result<()> {
+	pub async fn register(&mut self, key: &Key) -> Result<()> {
 		self.0.entry(key.chain_id).or_default();
 		self.0
 			.get_mut(&key.chain_id)
 			.unwrap()
 			.register(key.address, key.discord_id);
 
-		self.save()?;
+		self.save().await?;
 		Ok(())
 	}
 
-	pub fn clear(&mut self) -> Result<()> {
+	pub async fn clear(&mut self) -> Result<()> {
 		self.0.clear();
 		info!(?self, "Purging all ratelimits");
 
-		self.save()?;
+		self.save().await?;
 		Ok(())
 	}
 }
@@ -133,27 +137,34 @@ fn format_date(date: OffsetDateTime) -> String {
 
 /// Simple toml file storage
 impl RateLimits {
-	pub async fn read() -> Result<Self> {
-		let name = Utf8PathBuf::from("ratelimits.toml");
-		let local_path = ystd::env::current_dir().await?.join(&name);
-		let path;
-		if local_path.is_file().await {
-			path = local_path
-		} else {
-			// try absolute
-			let absolute = Utf8PathBuf::from("/home/ah/Desktop").join(&name);
-			if !absolute.is_file().await {
-				bail!("Couldn't find ratelimits.toml in {} or {}", local_path, absolute);
-			}
-			path = absolute;
+	const PATH: &str = if cfg!(not(debug_assertions)) {
+		// hard coded for serrver
+		"/home/ah/Desktop/ratelimits.toml"
+	} else {
+		concat!(env!("CARGO_MANIFEST_DIR"), "/ratelimits.toml")
+	};
+
+	/// Makes sure file exists
+	async fn get_path() -> Result<Utf8PathBuf> {
+		let path = Utf8PathBuf::from(Self::PATH);
+		if !path.is_file().await {
+			warn!("Ratelimits file doesn't exist, automatically trying to create it");
+			let mut options = tokio::fs::OpenOptions::new();
+			options.create_new(true).open(&path).await?;
+			info!(%path, "Created ratelimits file");
 		}
+		Ok(path)
+	}
+
+	pub async fn read() -> Result<Self> {
+		let path = Self::get_path().await?;
 		let file = std::fs::read_to_string(path)?;
 		let data: Self = toml::from_str(&file)?;
 		Ok(data)
 	}
 
-	pub fn save(&self) -> Result<()> {
-		let path = Utf8PathBuf::from("ratelimits.toml");
+	pub async fn save(&self) -> Result<()> {
+		let path = Self::get_path().await?;
 		let data = toml::to_string(&self)?;
 		std::fs::write(path, data)?;
 		Ok(())

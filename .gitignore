@@ -3,16 +3,15 @@
 !src
 !build.rs
 !salt
-!private-apis
 !intu-sdk
 !standard
 
-!.gitmodules
+!docs
+
 !.gitignore
 !Cargo.lock
 !Cargo.toml
 !env.sample.toml
 !README.md
-!docs
 !TODO.md
 !rustfmt.toml

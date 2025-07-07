@@ -1,7 +1,8 @@
-use std::sync::{atomic::AtomicBool, Mutex};
+use std::sync::atomic::AtomicBool;
 
 use tokio::sync::Notify;
 use twilight_http::Client;
+use ystd::sync::Mutex;
 
 use crate::{
 	env::Env, per_user_spam_filter::PerUserSpamFilter, prelude::*, ratelimits::RateLimits,
@@ -29,7 +30,13 @@ pub struct GlobalStateRef<'a> {
 }
 
 impl GlobalState {
-	pub fn new(client: Arc<Client>, env: Env, ratelimits: RateLimits, kill_now: Notify, shutting_down: Arc<AtomicBool>) -> Result<Self> {
+	pub fn new(
+		client: Arc<Client>,
+		env: Env,
+		ratelimits: RateLimits,
+		kill_now: Notify,
+		shutting_down: Arc<AtomicBool>,
+	) -> Result<Self> {
 		Ok(GlobalState {
 			client,
 			env: Arc::new(env),

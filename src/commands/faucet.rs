@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{sync::Mutex, time::Duration};
 
 use crate::{
 	chains::{self, BlockchainListing, SupportedChain},
@@ -260,11 +260,14 @@ impl SupportedChain {
 			chain_name,
 		};
 		if !has_expanded_limits {
-			let ratelimit = state.ratelimits.lock().or_poisoned().check(&ratelimit_key);
+			let ratelimit = state
+				.ratelimits
+				.lock()
+				.await?
+				.check(&ratelimit_key);
 			if let Err(msg) = ratelimit {
-				let msg = format!(
-					"Couldn't faucet you any tokens because you are ratelimited!\n{msg}"
-				);
+				let msg =
+					format!("Couldn't faucet you any tokens because you are ratelimited!\n{msg}");
 				respond(&msg).await?;
 				return Ok(());
 			}
@@ -385,8 +388,9 @@ impl SupportedChain {
 			state
 				.ratelimits
 				.lock()
-				.or_poisoned()
+				.await?
 				.register(&ratelimit_key)
+				.await
 				.wrap_err("Couldn't register successful bot transaction")?;
 			follow_up(&format!(
 				"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}"

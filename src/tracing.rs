@@ -13,9 +13,10 @@ pub struct Guard {
 }
 
 pub const LOGS_DIR: &str = if cfg!(not(debug_assertions)) {
+	// hard coded for server
 	"/home/ah/Desktop/logs"
 } else {
-	"/home/ah/Desktop/Salt-Discordbot/logs"
+	concat!(env!("CARGO_MANIFEST_DIR"), "/logs")
 };
 pub const PREFIX: &str = "rust-discordbot.json";
 

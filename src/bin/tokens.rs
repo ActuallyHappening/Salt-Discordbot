@@ -47,7 +47,7 @@ pub enum Cli {
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-	app_tracing::install_tracing("info,salt_sdk=debug,tokens=trace")?;
+	app_tracing::install_tracing("info,salt_sdk=debug,tokens=trace").await?;
 	trace!("Started tokens.rs");
 
 	let cli = Cli::parse();
