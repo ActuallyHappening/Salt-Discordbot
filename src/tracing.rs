@@ -31,6 +31,8 @@ pub async fn install_tracing(filter: &str) -> color_eyre::Result<Guard> {
 	// 	UtcOffset::UTC
 	// });
 	// let timer = OffsetTime::new(offset, format_description!("[hour]:[minute]:[second]"));
+	
+	color_eyre::install()?;
 
 	Utf8PathBuf::from(LOGS_DIR).assert_dir().await.wrap_err("Couldn't find logs dir")?;
 	
@@ -55,7 +57,6 @@ pub async fn install_tracing(filter: &str) -> color_eyre::Result<Guard> {
 		.with(ErrorLayer::default())
 		.init();
 
-	color_eyre::install()?;
 
 	Ok(Guard { guard })
 }

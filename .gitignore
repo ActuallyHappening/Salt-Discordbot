@@ -7,6 +7,7 @@
 !standard
 
 !docs
+!logs
 
 !.gitignore
 !Cargo.lock
