@@ -150,7 +150,7 @@ impl RateLimits {
 		if !path.is_file().await {
 			warn!("Ratelimits file doesn't exist, automatically trying to create it");
 			let mut options = tokio::fs::OpenOptions::new();
-			options.create_new(true).open(&path).await?;
+			options.write(true).create_new(true).open(&path).await?;
 			info!(%path, "Created ratelimits file");
 		}
 		Ok(path)
