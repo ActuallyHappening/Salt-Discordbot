@@ -39,45 +39,6 @@ pub struct Key {
 	pub chain_name: &'static str,
 }
 
-/// Doesn't use u64 as key
-mod ser {
-	use std::collections::HashMap;
-
-	use serde::{Deserialize, Serialize};
-
-	use crate::prelude::*;
-
-	#[derive(Serialize, Deserialize)]
-	pub(crate) struct RateLimits(HashMap<String, super::ChainLimits>);
-
-	impl TryFrom<RateLimits> for super::RateLimits {
-		type Error = color_eyre::Report;
-		fn try_from(value: RateLimits) -> Result<Self, Self::Error> {
-			value
-				.0
-				.into_iter()
-				.map(|(k, v)| {
-					let k: u64 = k.parse().wrap_err("Invalid number key")?;
-					Result::<_, Self::Error>::Ok((k, v))
-				})
-				.collect::<Result<_, Self::Error>>()
-				.map(Self)
-		}
-	}
-
-	impl From<super::RateLimits> for RateLimits {
-		fn from(value: super::RateLimits) -> Self {
-			Self(
-				value
-					.0
-					.into_iter()
-					.map(|(k, v)| (k.to_string(), v))
-					.collect(),
-			)
-		}
-	}
-}
-
 impl RateLimits {
 	pub fn check(&mut self, key: &Key) -> Result<(), RateLimitErr> {
 		self.0.entry(key.chain_id).or_default();
@@ -134,7 +95,19 @@ fn format_date(date: OffsetDateTime) -> String {
 /// Simple toml file storage
 impl RateLimits {
 	pub fn read() -> Result<Self> {
-		let path = Utf8PathBuf::from("ratelimits.toml");
+		let name = Utf8PathBuf::from("ratelimits.toml");
+		let local_path = std::env::current_dir()?.join(&name);
+		let path;
+		if local_path.is_file() {
+			path = locall_path
+		} else {
+			// try absolute
+			let absolute = Utf8PathBuf::from("/home/ah/Desktop").join(&name);
+			if !absolute.is_file() {
+				bail!("Couldn't find ratelimits.toml in {} or {}", local_path, absolute);
+			}
+			path = absolute;
+		}
 		let file = std::fs::read_to_string(path)?;
 		let data: Self = toml::from_str(&file)?;
 		Ok(data)

@@ -9,7 +9,6 @@ workspace = true
 
 [workspace]
 members = ["intu-sdk", "salt", "standard"]
-exclude = ["private-apis"]
 
 [workspace.dependencies]
 salt-sdk = { path = "salt" }
@@ -23,7 +22,6 @@ color-eyre = "0.6.3"
 hex = { version = "0.3.0", package = "hex-conservative" }
 or_poisoned = "0.1.0"
 rustls = { version = "0.23.23", features = ["aws-lc-rs"] }
-salt-private-apis = { version = "0.1.0", path = "private-apis" }
 salt-sdk.workspace = true
 serde = { version = "1.0.218", features = ["derive"] }
 serde_json = "1.0.140"
@@ -51,6 +49,7 @@ twilight-mention = "0.16.0"
 twilight-model = "0.16.0"
 twilight-util = { version = "0.16.0", features = ["builder"] }
 url = { version = "2.5.4", features = ["serde"] }
+ystd = "0.0.1"
 
 [build-dependencies]
 color-eyre = "0.6.3"

@@ -1084,9 +1084,9 @@ dependencies = [
 
 [[package]]
 name = "camino"
-version = "1.1.9"
+version = "1.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b96ec4966b5813e2c0507c1f86115c8c5abaadc3980879c3424042a02fd1ad3"
+checksum = "0da45bc31171d8d6960122e222a67740df867c1dd53b4d51caa297084c185cab"
 
 [[package]]
 name = "cc"
@@ -3655,7 +3655,6 @@ dependencies = [
  "hex-conservative 0.3.0",
  "or_poisoned",
  "rustls",
- "salt-private-apis",
  "salt-sdk",
  "serde",
  "serde_json",
@@ -3679,18 +3678,7 @@ dependencies = [
  "twilight-model",
  "twilight-util",
  "url",
-]
-
-[[package]]
-name = "salt-private-apis"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "reqwest",
- "serde_json",
- "tokio",
- "tracing",
- "url",
+ "ystd",
 ]
 
 [[package]]
@@ -5460,6 +5448,19 @@ dependencies = [
  "quote",
  "syn 2.0.101",
  "synstructure",
+]
+
+[[package]]
+name = "ystd"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34d4695ccbee7c6a41afe43840149c20f57527842c60f447292da4b3addb7277"
+dependencies = [
+ "camino",
+ "color-eyre",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

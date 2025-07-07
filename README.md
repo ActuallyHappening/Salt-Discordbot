@@ -44,13 +44,3 @@ cd /home/ah/Desktop
 
 After you have a running session you want to keep running in the background, **DON'T CLOSE YOUR TERMINAL**, instead press Control+O then D, which detaches
 the session and will keep it running in the background. Then you can safely close your terminal session and zellij will keep running in the background.
-
-## Private APIs
-A private crate exists as a git submodule in this repo.
-
-```nu
-git submodule init
-
-# to update
-git submodule update --remote
-```
