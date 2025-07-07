@@ -1,7 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use crate::prelude::*;
-use camino::Utf8PathBuf;
+use crate::{commands::defer, prelude::*};
 use color_eyre::{Section, eyre::Context as _};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
@@ -63,9 +62,7 @@ impl AdminCommand {
 			AdminCommand::PurgeUserDedupe(_) => {
 				let dump = state.per_user_spam_filters.dump();
 				state.per_user_spam_filters.purge();
-				let msg = format!(
-					"Purged the user dedupe data, this was what was purged:\n{dump}"
-				);
+				let msg = format!("Purged the user dedupe data, this was what was purged:\n{dump}");
 				state
 					.client
 					.interaction(interaction.application_id)
@@ -124,18 +121,7 @@ impl DumpLogs {
 		state: GlobalStateRef<'_>,
 		interaction: Interaction,
 	) -> color_eyre::Result<()> {
-		state
-			.client
-			.interaction(interaction.application_id)
-			.create_response(
-				interaction.id,
-				&interaction.token,
-				&InteractionResponse {
-					kind: InteractionResponseType::DeferredChannelMessageWithSource,
-					data: None,
-				},
-			)
-			.await?;
+		defer(state, &interaction).await?;
 
 		match self.get_file().await {
 			Ok(file) => {
@@ -168,14 +154,13 @@ impl DumpLogs {
 		let format = time::macros::format_description!("[year]-[month]-[day]");
 		let file_timestamp = now.format(&format)?;
 		let file_name = format!("{}.{}", crate::app_tracing::PREFIX, file_timestamp);
-		let file_path = camino::Utf8PathBuf::from(crate::app_tracing::LOGS_DIR).join(&file_name);
-		if !file_path.is_file() {
-			bail!("Logs file not found at {}", file_path);
-		}
-		let data = tokio::fs::read(&file_path)
+		let file_path = Utf8PathBuf::from(crate::app_tracing::LOGS_DIR).join(&file_name);
+		
+		file_path.assert_file().await.wrap_err("Logs file not found")?;
+		
+		let data = ystd::fs::read(&file_path)
 			.await
-			.wrap_err("Couldn't read log file")
-			.note(format!("Log file path: {file_path}"))?;
+			.wrap_err("Couldn't read log file")?;
 		let attachment = Attachment {
 			description: Some(format!("Log file exported at {now}")),
 			file: data,
@@ -228,8 +213,11 @@ impl PurgeUserRatelimits {
 				&interaction.token,
 				&InteractionResponse {
 					kind: InteractionResponseType::ChannelMessageWithSource,
-					data: Some(InteractionResponseDataBuilder::new()
-						.content("Purged all ratelimit data").build()),
+					data: Some(
+						InteractionResponseDataBuilder::new()
+							.content("Purged all ratelimit data")
+							.build(),
+					),
 				},
 			)
 			.await
