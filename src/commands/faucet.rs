@@ -190,6 +190,8 @@ impl FaucetCommand {
 	}
 }
 
+todo: take GlobalState Arc, make logging a static fut with tokio::spawn,
+add some helper string methods like truncate_lossy
 impl SupportedChain {
 	pub async fn handle(
 		&self,
@@ -263,7 +265,7 @@ impl SupportedChain {
 			broadcasting_network_id: chain_id,
 		};
 		let salt = Salt::new(salt_config)?;
-		let transaction = salt.transaction(TransactionInfo {
+		let transaction_task = salt.transaction(TransactionInfo {
 			amount,
 			vault_address: state.env.faucet_testnet_salt_account_address,
 			recipient_address: address,
@@ -274,9 +276,8 @@ impl SupportedChain {
 			confirm_broadcast: true,
 			auto_broadcast: true,
 		});
-		let logging_task = async {
-			let mut recv_logs: Receiver<_> = recv_logs;
-			let interaction = interaction.clone();
+		let tx_running_logging_task = async {
+			let mut recv_logs: Receiver<_> = recv_logs.clone();
 			while let Some(log) = recv_logs.recv().await {
 				info!(%log, "Sending live log");
 				// no need to clobber discord with useless logs
@@ -290,8 +291,7 @@ impl SupportedChain {
 			Result::<(), color_eyre::Report>::Ok(())
 		};
 
-		// let logging_task = tokio::spawn(logging_task);
-		let (res, logging_err) = tokio::join!(transaction, logging_task);
+		let (res, logging_err) = tokio::join!(transaction_task, tx_running_logging_task);
 
 		if let Err(err) = logging_err {
 			error!("Failed to send live logs:\n{}", err);
