@@ -40,7 +40,7 @@ async fn main() -> color_eyre::Result<()> {
 		data: vec![],
 		logging: LiveLogging::from_cb(|msg| info!(%msg)),
 		gas: GasEstimator::Default,
-		confirm_publish: true,
+		confirm_broadcast: true,
 		auto_broadcast: true,
 	})
 	// .timeout(Duration::from_secs(60 * 2))

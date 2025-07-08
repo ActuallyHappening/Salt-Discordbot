@@ -3713,7 +3713,7 @@ dependencies = [
  "twilight-model",
  "twilight-util",
  "url",
- "ystd 0.0.5",
+ "ystd",
 ]
 
 [[package]]
@@ -3739,7 +3739,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "which 7.0.3",
- "ystd 0.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ystd",
 ]
 
 [[package]]
@@ -5500,31 +5500,18 @@ dependencies = [
 
 [[package]]
 name = "ystd"
-version = "0.0.5"
+version = "0.0.7"
 dependencies = [
  "base64",
  "camino",
  "color-eyre",
  "command-macros",
+ "const-hex",
  "extension-traits",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
  "which 8.0.0",
-]
-
-[[package]]
-name = "ystd"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "357b08ed2d4e3233c48bd2dd55e61985eb28f000d874c2ba561584477aeccdbc"
-dependencies = [
- "camino",
- "color-eyre",
- "extension-traits",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
 ]
 
 [[package]]

@@ -112,7 +112,8 @@ async fn main() -> color_eyre::Result<()> {
 				data: calldata,
 				logging: salt_sdk::LiveLogging::from_cb(|msg| info!(%msg, "Transaction live logs")),
 				gas: salt_sdk::GasEstimator::Mul(100.0),
-				confirm_publish: true,
+				confirm_broadcast: true,
+				auto_broadcast: true,
 			})
 			.await
 			.wrap_err("Unable to send transaction")?;

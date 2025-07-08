@@ -286,7 +286,8 @@ impl SupportedChain {
 			data: vec![],
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
 			gas: salt_sdk::GasEstimator::Mul(10.0),
-			confirm_publish: true,
+			confirm_broadcast: true,
+			auto_broadcast: true,
 		});
 		let logging = async move {
 			while let Some(log) = live_logs.recv().await {

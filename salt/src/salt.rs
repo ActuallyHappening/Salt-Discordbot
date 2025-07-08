@@ -12,7 +12,7 @@ use alloy_primitives::{
 };
 pub use live_logging::*;
 use tokio::sync::oneshot;
-use ystd::time::FutureTimeoutExt as _;
+use ystd::{eyre_assert_eq, time::FutureTimeoutExt as _};
 mod live_logging;
 
 pub struct Salt {
@@ -164,7 +164,10 @@ pub struct TransactionInfo {
 	pub data: Vec<u8>,
 	pub gas: GasEstimator,
 	pub logging: LiveLogging,
-	pub confirm_publish: bool,
+	/// Checks that the transaction has been broadcasted before declaring the transaction successful
+	pub confirm_broadcast: bool,
+	/// If [TransactionInfo.confirm_broadcast] and the transaction was found to not be broadcasted
+	/// after some timeout, automatically broadcast it ourselves
 	pub auto_broadcast: bool,
 }
 
@@ -200,7 +203,7 @@ mod tests {
 			data: todo!(),
 			gas: todo!(),
 			logging: LiveLogging::from_cb(|str| ()),
-			confirm_publish: todo!(),
+			confirm_broadcast: todo!(),
 			auto_broadcast: todo!(),
 		}));
 	}
@@ -219,7 +222,7 @@ impl Salt {
 			data,
 			gas,
 			logging: mut cb,
-			confirm_publish,
+			confirm_broadcast,
 			auto_broadcast,
 		} = info;
 
@@ -277,15 +280,24 @@ impl Salt {
 		let Some(broadcasted_tx) = log else {
 			return Err(Error::NoBroadcastedTx);
 		};
-		let broadcasted_ts = ystd::base64::decode(broadcasted_tx).map_err(Error::CouldntConfirmTx)?;
+		let broadcasted_tx = ystd::base64::decode(&broadcasted_tx)
+			.wrap_err("Couldn't decode base64 encoded transaction as sent through live logging")
+			.map_err(Error::CouldntConfirmTx)?;
+
 
 		let _output = output?;
-		let broadcasted_tx_hash = alloy::primitives::utils::keccak256(broadcasted_tx.as_bytes());
+		let broadcasted_tx_hash = alloy::primitives::utils::keccak256(&broadcasted_tx);
 		let done = TransactionDone {
 			hash: broadcasted_tx_hash,
 		};
+		
+		debug!(
+			"Tx hex: {}, Tx hash hex: {}",
+			ystd::hex::encode(&broadcasted_tx),
+			ystd::hex::encode(&broadcasted_tx_hash)
+		);
 
-		if confirm_publish {
+		if confirm_broadcast {
 			let provider = alloy::providers::ProviderBuilder::new()
 				.connect(self.config.broadcasting_network_rpc_node.as_str())
 				.await
@@ -295,14 +307,14 @@ impl Salt {
 					self.config.broadcasting_network_rpc_node
 				))
 				.map_err(Error::CouldntConfirmTx)?;
-			match async move {
+			match async {
 				loop {
 					tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 					if let Some(tx) = provider.get_transaction_by_hash(broadcasted_tx_hash).await.wrap_err("Couldn't get transaction by hash?").map_err(Error::CouldntConfirmTx)? {
 						debug!(?tx, "Polling confirmed the transaction was broadcasted");
 						break Result::<_, Error>::Ok(tx);
 					} else {
-						trace!("Polled {} for transaction hash {broadcasted_tx} and found it doesn't exist (yet)", self.config.broadcasting_network_rpc_node);
+						trace!("Polled {} for transaction hash {} and found it doesn't exist (yet)", ystd::hex::encode(&broadcasted_tx), self.config.broadcasting_network_rpc_node);
 					}
 				}
 			}
@@ -313,7 +325,11 @@ impl Salt {
 				Err(timeout) => {
 					if auto_broadcast {
 						cb.send(Log::AutoBroadcasting).await;
-						provider.send_raw_transaction(&);
+						let pending = provider.send_raw_transaction(&broadcasted_tx).await.wrap_err("Couldn't broadcast transaction").map_err(Error::CouldntConfirmTx)?;
+						let recipt = pending.get_receipt().await.wrap_err("Couldn't get receipt").map_err(Error::CouldntConfirmTx)?;
+						if recipt.transaction_hash != broadcasted_tx_hash {
+							error!("What is going on? Transaction hash mismatch");
+						}
 					} else {
 						return Err(timeout);
 					}

@@ -41,4 +41,4 @@ tracing-error = "0.2.1"
 tracing-subscriber = { version = "0.3.19", features = ["time", "local-time", "env-filter"] }
 url = { version = "2.5.4", features = ["serde"] }
 which = { version = "7.0.3", features = ["tracing"] }
-ystd = "0.0.6"
+ystd.workspace = true

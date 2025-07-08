@@ -14,6 +14,7 @@ members = ["intu-sdk", "salt", "standard"]
 [workspace.dependencies]
 salt-sdk = { path = "salt" }
 standard-sdk = { path = "standard" }
+ystd = { version = "*", path = "/home/ah/Desktop/YMap/ystd" }
 
 [dependencies]
 alloy = { version = "1.0.9", features = ["sol-types"] }
@@ -50,7 +51,7 @@ twilight-mention = "0.16.0"
 twilight-model = "0.16.0"
 twilight-util = { version = "0.16.0", features = ["builder"] }
 url = { version = "2.5.4", features = ["serde"] }
-ystd = { version = "0.0.5", path = "/home/ah/Desktop/YMap/ystd" }
+ystd.workspace = true
 
 [build-dependencies]
 color-eyre = "0.6.3"
