@@ -174,6 +174,7 @@ pub enum GasEstimator {
 	Mul(f64),
 }
 
+#[derive(Debug)]
 pub struct TransactionDone {
 	pub hash: TxHash,
 }

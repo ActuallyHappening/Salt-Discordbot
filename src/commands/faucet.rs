@@ -1,7 +1,8 @@
 use std::{sync::Mutex, time::Duration};
 
+use crate::chains::explorer::ExplorableBlockchain as _;
 use crate::{
-	chains::{self, BlockchainListing, SupportedChain},
+	chains::{self, BlockchainListing, SupportedChain, explorer::BlockchainExplorer as _},
 	prelude::*,
 	ratelimits::Key,
 };
@@ -47,14 +48,6 @@ pub(super) enum FaucetCommand {
 }
 
 mod erc20;
-
-// /// Check all your ratelimits by chain
-// #[derive(Debug, Clone, CommandModel, CreateCommand)]
-// #[command(name = "ratelimits")]
-// pub(super) struct CheckRatelimits {
-// 	/// Your personal wallet address
-// 	pub address: String,
-// }
 
 pub struct DiscordInfo {
 	discord_id: Id<UserMarker>,
@@ -260,11 +253,7 @@ impl SupportedChain {
 			chain_name,
 		};
 		if !has_expanded_limits {
-			let ratelimit = state
-				.ratelimits
-				.lock()
-				.await?
-				.check(&ratelimit_key);
+			let ratelimit = state.ratelimits.lock().await?.check(&ratelimit_key);
 			if let Err(msg) = ratelimit {
 				let msg =
 					format!("Couldn't faucet you any tokens because you are ratelimited!\n{msg}");
@@ -274,49 +263,6 @@ impl SupportedChain {
 		} else {
 			info!(%discord_id, "This person has expanded limits");
 		}
-
-		// do business logic checks
-		// let check = Check { address: self.address() };
-		// match self {
-		// 	SupportedChain::SepoliaArbitrum(_) => {
-		// 		if let Err(err) = check.test_1(state).await {
-		// 			// handle error
-		// 			let response = InteractionResponse {
-		// 				kind: InteractionResponseType::ChannelMessageWithSource,
-		// 				data: Some(
-		// 					InteractionResponseDataBuilder::new()
-		// 						.content(err.to_string())
-		// 						.build(),
-		// 				),
-		// 			};
-		// 			state
-		// 				.client
-		// 				.interaction(interaction.application_id)
-		// 				.create_response(interaction.id, &interaction.token, &response)
-		// 				.await?;
-		// 			return Ok(())
-		// 		}
-		// 	}
-		// 	_ => {
-		// 		if let Err(err) = check.test_2(state).await {
-		// 			// handle error
-		// 			let response = InteractionResponse {
-		// 				kind: InteractionResponseType::ChannelMessageWithSource,
-		// 				data: Some(
-		// 					InteractionResponseDataBuilder::new()
-		// 						.content(err.to_string())
-		// 						.build(),
-		// 				),
-		// 			};
-		// 			state
-		// 				.client
-		// 				.interaction(interaction.application_id)
-		// 				.create_response(interaction.id, &interaction.token, &response)
-		// 				.await?;
-		// 			return Ok(())
-		// 		}
-		// 	}
-		// }
 
 		// initial response
 		respond(&format!(
@@ -358,45 +304,53 @@ impl SupportedChain {
 			error!("Failed to send live logs:\n{}", err);
 		}
 
-		if let Err(err) = res {
-			error!("Failed to do salt transaction:\n{}", err);
-			let mut err_string = err.to_string();
+		match res {
+			Err(err) => {
+				error!("Failed to do salt transaction:\n{}", err);
+				let mut err_string = err.to_string();
 
-			if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
-				err_string = output.stderr;
-			}
+				if let salt_sdk::Error::SubprocessExitedBadlyWithOutput(output) = err {
+					err_string = output.stderr;
+				}
 
-			if err_string.len() > 1900 {
-				// only keeps first 1900 bytes, avoiding a panic if using String.split_off
-				// https://doc.rust-lang.org/stable/std/string/struct.String.html#method.split_off
-				let truncated = err_string
-					.into_bytes()
-					.into_iter()
-					.take(1900)
-					.collect::<Vec<u8>>();
-				let truncated = String::from_utf8_lossy(&truncated);
-				err_string = format!("{truncated}...<truncated>");
+				if err_string.len() > 1900 {
+					// only keeps first 1900 bytes, avoiding a panic if using String.split_off
+					// https://doc.rust-lang.org/stable/std/string/struct.String.html#method.split_off
+					let truncated = err_string
+						.into_bytes()
+						.into_iter()
+						.take(1900)
+						.collect::<Vec<u8>>();
+					let truncated = String::from_utf8_lossy(&truncated);
+					err_string = format!("{truncated}...<truncated>");
+				}
+				err_string = format!(
+					"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"
+				);
+				follow_up(&err_string)
+					.await
+					.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
 			}
-			err_string = format!(
-				"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"
-			);
-			follow_up(&err_string)
-				.await
-				.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
-		} else {
-			// still registers even if expanded limits
-			state
-				.ratelimits
-				.lock()
-				.await?
-				.register(&ratelimit_key)
-				.await
-				.wrap_err("Couldn't register successful bot transaction")?;
-			follow_up(&format!(
-				"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}"
-			))
-			.await?;
-			info!("Finished handling the discord interaction");
+			Ok(data) => {
+				let explorer_url = self.block_explorer().transaction_explorer_url(data.hash)?;
+				follow_up(&format!(
+					"Final stage: The robos have co-signed and broadcasted the transaction!\n*See it here: <{explorer_url}>*",
+				))
+				.await?;
+				// still registers even if expanded limits
+				state
+					.ratelimits
+					.lock()
+					.await?
+					.register(&ratelimit_key)
+					.await
+					.wrap_err("Couldn't register successful bot transaction")?;
+				follow_up(&format!(
+					"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}"
+				))
+				.await?;
+				info!("Finished handling the discord interaction");
+			}
 		}
 
 		Ok(())

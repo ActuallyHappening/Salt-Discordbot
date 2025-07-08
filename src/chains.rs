@@ -13,7 +13,7 @@ use crate::{
 	prelude::*,
 };
 
-mod explorer;
+pub mod explorer;
 
 pub trait BlockchainListing {
 	fn chain_id(&self) -> u64;

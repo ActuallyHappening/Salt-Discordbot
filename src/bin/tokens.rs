@@ -116,7 +116,7 @@ async fn main() -> color_eyre::Result<()> {
 			})
 			.await
 			.wrap_err("Unable to send transaction")?;
-		info!(%output, "Done salt token transaction!");
+		info!(?output, "Done salt token transaction!");
 	}
 
 	loop {
