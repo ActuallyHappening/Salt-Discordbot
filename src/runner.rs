@@ -1,7 +1,6 @@
-use std::sync::{
-	LazyLock,
-	atomic::{AtomicBool, Ordering},
-};
+use std::{sync::{
+	atomic::{AtomicBool, Ordering}, LazyLock
+}, time::Duration};
 
 use crate::{common::GlobalState, prelude::*};
 use tokio::sync::Notify;
@@ -45,10 +44,8 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 					warn!("Automatically cancelling a processing interaction because receiving a shutdown signal");
 					return;
 				}
-				res = tokio::time::timeout(
-					std::time::Duration::from_secs(60 * 2),
-					process_interactions(state.clone(), event),
-				) => {
+				res = process_interactions(state.clone(), event).timeout(Duration::from_secs(60 * 2))
+				 => {
 					if let Err(err) = res {
 						warn!(?err, "Timing out a processing interaction");
 					}

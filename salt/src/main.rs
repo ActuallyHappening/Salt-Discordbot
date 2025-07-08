@@ -2,9 +2,11 @@ mod tracing;
 
 #[allow(unused_imports)]
 use ::tracing::{debug, error, info, trace, warn};
-use alloy_primitives::utils::parse_ether;
+use alloy_primitives::{address, utils::parse_ether};
 use color_eyre::eyre::Context as _;
 use salt_sdk::{GasEstimator, LiveLogging, Salt, TransactionInfo};
+use std::time::Duration;
+use ystd::prelude::*;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -22,13 +24,14 @@ async fn main() -> color_eyre::Result<()> {
 
 	let mut rl = rustyline::DefaultEditor::new()?;
 
-	// let amount = format!("0.00001");
-	// let vault_address = format!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
-	// let recipient_address = format!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
-	let amount = rl.readline("Amount to transfer: ")?;
+	let amount = format!("0.00001");
+	let vault_address = address!("0x85BCADfB48E95168b3C4aA3221ca2526CF96c99E");
+	let recipient_address = address!("0xEA428233445A5Cf500B9d5c91BcA6E7B887f7D70");
+	// let amount = rl.readline("Amount to transfer: ")?;
+	// let vault_address = rl.readline("Vault address: ")?.parse()?;
+	// let recipient_address = rl.readline("Recipient address: ")?.parse()?;
+
 	let amount = parse_ether(&amount)?;
-	let vault_address = rl.readline("Vault address: ")?.parse()?;
-	let recipient_address = rl.readline("Recipient address: ")?.parse()?;
 
 	let transaction = salt
 		.transaction(TransactionInfo {
@@ -40,7 +43,8 @@ async fn main() -> color_eyre::Result<()> {
 			gas: GasEstimator::Default,
 			confirm_publish: true,
 		})
-		.await
+		.timeout(Duration::from_secs(30))
+		.await?
 		.wrap_err("Couldn't do salt transaction")?;
 
 	info!("Salt transaction completed:\n{}", transaction);

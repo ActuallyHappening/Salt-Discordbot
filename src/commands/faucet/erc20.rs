@@ -186,7 +186,7 @@ impl SomniaShannonPing {
 		let logging = async move {
 			while let Some(log) = live_logs.recv().await {
 				info!(%log, "Sending live log");
-				follow_up(&log)
+				follow_up(&log.to_string())
 					.await
 					.wrap_err("Live logging failed to send")?;
 			}

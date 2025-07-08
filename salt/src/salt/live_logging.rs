@@ -1,3 +1,5 @@
+use alloy_primitives::{Address, TxHash};
+use serde::Deserialize;
 use tokio::io::AsyncReadExt as _;
 
 use crate::prelude::*;
@@ -9,13 +11,38 @@ use crate::prelude::*;
 /// let log: Logging = Logging::from(|msg: String| tracing::info!(%msg, "Live log!"));
 /// ```
 pub enum LiveLogging {
-	Channel(tokio::sync::mpsc::Sender<String>),
+	Channel(tokio::sync::mpsc::Sender<Log>),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum Log {
+	GenericMessage(String),
+	BroadcastedTx(Address),
+}
+
+impl std::fmt::Display for Log {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Log::GenericMessage(msg) => write!(f, "{}", msg),
+			Log::BroadcastedTx(addr) => write!(f, "Broadcasted transaction: {}", addr),
+		}
+	}
+}
+
+impl Log {
+	pub fn from_str(msg: &str) -> Self {
+		if let Ok(log) = serde_json::from_str(msg) {
+			log
+		} else {
+			Log::GenericMessage(msg.to_string())
+		}
+	}
 }
 
 impl LiveLogging {
 	pub fn from_cb<F>(mut cb: F) -> Self
 	where
-		F: FnMut(String) + Send + 'static,
+		F: FnMut(Log) + Send + 'static,
 	{
 		// going to do some tokio schenanigans
 		let (send, mut recv) = tokio::sync::mpsc::channel(10);
@@ -27,15 +54,15 @@ impl LiveLogging {
 		Self::Channel(send)
 	}
 
-	pub fn from_sender(sender: tokio::sync::mpsc::Sender<String>) -> Self {
+	pub fn from_sender(sender: tokio::sync::mpsc::Sender<Log>) -> Self {
 		Self::Channel(sender)
 	}
 
-	async fn send(&mut self, msg: String) {
+	async fn send(&mut self, log: Log) {
 		match self {
 			// Self::Cb(cb) => cb(msg),
 			Self::Channel(send) => {
-				if let Err(err) = send.send(msg).await {
+				if let Err(err) = send.send(log).await {
 					error!(%err, "Tried to send a live log after receiver was dropped");
 				}
 			}
@@ -43,8 +70,8 @@ impl LiveLogging {
 	}
 }
 
-impl From<tokio::sync::mpsc::Sender<String>> for LiveLogging {
-	fn from(value: tokio::sync::mpsc::Sender<String>) -> Self {
+impl From<tokio::sync::mpsc::Sender<Log>> for LiveLogging {
+	fn from(value: tokio::sync::mpsc::Sender<Log>) -> Self {
 		Self::Channel(value)
 	}
 }
@@ -54,6 +81,7 @@ pub(crate) async fn logging(
 	listener: tokio::net::TcpListener,
 	mut logging: LiveLogging,
 	mut stop_listening: tokio::sync::oneshot::Receiver<()>,
+	broadcasted_tx_hash: &mut Option<TxHash>,
 ) -> Result<(), color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
@@ -92,12 +120,24 @@ pub(crate) async fn logging(
 				String::from_utf8_lossy(&bytes)
 			);
 
+			let mut send = async |msg: &str| {
+				let log = Log::from_str(msg);
+				match &log {
+					Log::BroadcastedTx(tx) => {
+						*broadcasted_tx_hash = Some(TxHash::new(alloy_primitives::keccak256(tx).0));
+					}
+					Log::GenericMessage(_) => {
+						logging.send(log).await;
+					}
+				}
+			};
+
 			if bytes_read == 0 {
 				debug!("Disconnecting");
 				if !bytes.is_empty() {
 					let message = String::from_utf8_lossy(&bytes);
 					trace!(%message, "Sending message with the remaining bytes because of a disconnect");
-					logging.send(message.into_owned()).await;
+					send(&message).await;
 				}
 				break;
 			}
@@ -111,7 +151,7 @@ pub(crate) async fn logging(
 			// send
 			for msg in to_send {
 				trace!(%msg, "Sending message");
-				logging.send(msg.to_string()).await;
+				send(&msg).await;
 			}
 			// replace buf
 			bytes.clear();

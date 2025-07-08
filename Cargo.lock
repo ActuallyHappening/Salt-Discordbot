@@ -1252,6 +1252,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "command-macros"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "246a765b3097ef3ace86928361a05c5b6a18147b0fb4031ccbcd46ffbacacc47"
+
+[[package]]
 name = "const-hex"
 version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3707,7 +3713,7 @@ dependencies = [
  "twilight-model",
  "twilight-util",
  "url",
- "ystd",
+ "ystd 0.0.5",
 ]
 
 [[package]]
@@ -3732,6 +3738,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "which 7.0.3",
+ "ystd 0.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5094,6 +5101,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "which"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fabb953106c3c8eea8306e4393700d7657561cb43122571b172bbfb7c7ba1d"
+dependencies = [
+ "env_home",
+ "rustix 1.0.7",
+ "tracing",
+ "winsafe",
+]
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5481,6 +5500,22 @@ dependencies = [
 [[package]]
 name = "ystd"
 version = "0.0.5"
+dependencies = [
+ "camino",
+ "color-eyre",
+ "command-macros",
+ "extension-traits",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "which 8.0.0",
+]
+
+[[package]]
+name = "ystd"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357b08ed2d4e3233c48bd2dd55e61985eb28f000d874c2ba561584477aeccdbc"
 dependencies = [
  "camino",
  "color-eyre",

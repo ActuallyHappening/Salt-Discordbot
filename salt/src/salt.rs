@@ -184,6 +184,7 @@ mod tests {
 			unimplemented!(),
 			unimplemented!(),
 			unimplemented!(),
+			unimplemented!()
 		));
 		is_send(salt.transaction(TransactionInfo {
 			amount: todo!(),
@@ -198,7 +199,8 @@ mod tests {
 }
 
 impl Salt {
-	#[tracing::instrument(name = "transaction", skip_all)]
+	///
+	#[tracing::instrument(skip_all)]
 	pub async fn transaction(&self, info: TransactionInfo) -> Result<Output> {
 		debug!("Beginning transaction ...");
 
@@ -240,23 +242,24 @@ impl Salt {
 					&vault_address.to_string(),
 					"-recipient-address",
 					&recipient_address.to_string(),
-					"-data",
-					&data.to_lower_hex_string(),
 					"-logging-port",
 					&addr.port().to_string(),
 					"-gas",
 					&serde_json::to_string(&gas)
 						.wrap_err("Can't serialize gas")
 						.map_err(Error::SerdeJson)?,
+					"-data",
+					&data.to_lower_hex_string(),
 				])?
-				.run_and_wait_for_output()
+				.run_and_wait_for_stderr()
 				.await?;
 			// ignores case where recv was dropped because never used
 			stop.send(()).ok();
 			Result::<_, Error>::Ok(output)
 		};
 
-		let logging = logging(listener, cb, recv);
+		let mut broadcasted_tx_hash = None;
+		let logging = logging(listener, cb, recv, &mut broadcasted_tx_hash);
 
 		let (output, log_res) = tokio::join!(cmd, logging);
 		if let Err(err) = log_res {

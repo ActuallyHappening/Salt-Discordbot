@@ -172,6 +172,27 @@ impl AsyncCommand {
 
 		Ok(output)
 	}
+
+	pub async fn run_and_wait_for_stderr(mut self) -> Result<Output> {
+		self.pre_logging();
+
+		let output: Output = self
+			.0
+			.stdout(Stdio::inherit())
+			.stderr(Stdio::piped())
+			.spawn()
+			.map_err(Error::FailedToExecute)?
+			.wait_with_output()
+			.await
+			.map_err(Error::FailedToExecute)?
+			.into();
+
+		if !output.status.success() {
+			return Err(Error::SubprocessExitedBadlyWithOutput(output));
+		}
+
+		Ok(output)
+	}
 }
 
 #[derive(Debug)]
