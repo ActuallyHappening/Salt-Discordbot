@@ -1,6 +1,7 @@
 use std::{sync::Mutex, time::Duration};
 
 use crate::chains::explorer::ExplorableBlockchain as _;
+use crate::commands::{follow_up, respond};
 use crate::{
 	chains::{self, BlockchainListing, SupportedChain, explorer::BlockchainExplorer as _},
 	prelude::*,
@@ -10,6 +11,7 @@ use alloy::primitives::utils::{ParseUnits, Unit};
 use chains::NativeFaucet as _;
 use color_eyre::Section;
 use salt_sdk::{Salt, SaltConfig, TransactionInfo};
+use tokio::sync::mpsc::Receiver;
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{
 	application::interaction::{Interaction, application_command::CommandData},
@@ -207,39 +209,18 @@ impl SupportedChain {
 			has_expanded_limits,
 		} = discord_info;
 
-		let respond = async |msg: &str| {
-			state
-				.client
-				.interaction(interaction.application_id)
-				.create_response(
-					interaction.id,
-					&interaction.token,
-					&InteractionResponse {
-						kind: InteractionResponseType::ChannelMessageWithSource,
-						data: Some(InteractionResponseDataBuilder::new().content(msg).build()),
-					},
-				)
-				.await
-				.wrap_err("Couldn't initially respond to a discord interaction")
-		};
-		let follow_up = async |msg: &str| {
-			state
-				.client
-				.interaction(interaction.application_id)
-				.create_followup(&interaction.token)
-				.content(msg.as_ref())
-				.await
-				.wrap_err("Couldn't followup a discord interaction")
-		};
-
 		let address = match address {
 			Ok(address) => address,
 			Err(err) => {
-				respond(&format!(
-					"Invalid Etherium wallet address {:?}: {}",
-					self.address_str(),
-					err
-				))
+				respond(
+					state,
+					&interaction,
+					&format!(
+						"Invalid Etherium wallet address {:?}: {}",
+						self.address_str(),
+						err
+					),
+				)
 				.await?;
 				return Ok(());
 			}
@@ -257,7 +238,7 @@ impl SupportedChain {
 			if let Err(msg) = ratelimit {
 				let msg =
 					format!("Couldn't faucet you any tokens because you are ratelimited!\n{msg}");
-				respond(&msg).await?;
+				respond(state, &interaction, &msg).await?;
 				return Ok(());
 			}
 		} else {
@@ -265,13 +246,16 @@ impl SupportedChain {
 		}
 
 		// initial response
-		respond(&format!(
-			"Starting faucet of {amount_eth}{token_name} ({chain_name}) to {address} ..."
-		))
+		respond(
+			state,
+			&interaction,
+			&format!("Starting faucet of {amount_eth}{token_name} ({chain_name}) to {address} ..."),
+		)
 		.await?;
 
 		// do transaction
-		let (send_logs, mut live_logs) = tokio::sync::mpsc::channel(10);
+		let (send_logs, mut recv_logs) = tokio::sync::mpsc::channel(10);
+		let mut live_logging = salt_sdk::LiveLogging::from_sender(send_logs);
 		let salt_config = SaltConfig {
 			private_key: state.env.private_key.clone(),
 			orchestration_network_rpc_node: state.env.sepolia_arbitrum_rpc_endpoint.clone(),
@@ -284,30 +268,30 @@ impl SupportedChain {
 			vault_address: state.env.faucet_testnet_salt_account_address,
 			recipient_address: address,
 			data: vec![],
-			logging: salt_sdk::LiveLogging::from_sender(send_logs),
+			logging: &mut live_logging,
 			// very high as error handling of invalid transactions is annoying
 			gas: salt_sdk::GasEstimator::Mul(100.0),
 			confirm_broadcast: true,
 			auto_broadcast: true,
 		});
-		let logging = async move {
-			while let Some(log) = live_logs.recv().await {
+		let logging_task = async {
+			let mut recv_logs: Receiver<_> = recv_logs;
+			let interaction = interaction.clone();
+			while let Some(log) = recv_logs.recv().await {
 				info!(%log, "Sending live log");
 				// no need to clobber discord with useless logs
-				if matches!(
-					log,
-					salt_sdk::Log::AutoBroadcastedSuccessfully | salt_sdk::Log::BroadcastedTx(_)
-				) {
+				if matches!(log, salt_sdk::Log::BroadcastedTx(_)) {
 					return Ok(());
 				}
-				follow_up(&log.to_string())
+				follow_up(state, &interaction, log.to_string())
 					.await
 					.wrap_err("Live logging failed to send")?;
 			}
 			Result::<(), color_eyre::Report>::Ok(())
 		};
 
-		let (res, logging_err) = tokio::join!(transaction, logging);
+		// let logging_task = tokio::spawn(logging_task);
+		let (res, logging_err) = tokio::join!(transaction, logging_task);
 
 		if let Err(err) = logging_err {
 			error!("Failed to send live logs:\n{}", err);
@@ -336,7 +320,7 @@ impl SupportedChain {
 				err_string = format!(
 					"Error transacting {amount_eth}{token_name} ({chain_name}) to {address}:\n{err_string}"
 				);
-				follow_up(&err_string)
+				follow_up(state, &interaction, err_string)
 					.await
 					.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
 			}
@@ -350,7 +334,7 @@ impl SupportedChain {
 					.await
 					.wrap_err("Couldn't register successful bot transaction")?;
 				let explorer_url = self.block_explorer().transaction_explorer_url(data.hash)?;
-				follow_up(&format!(
+				follow_up(state, &interaction, &format!(
 					"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}\nSee the final broadcasted transaction here: <{explorer_url}>"
 				))
 				.await?;
@@ -358,6 +342,7 @@ impl SupportedChain {
 			}
 		}
 
+		drop(live_logging);
 		Ok(())
 	}
 }

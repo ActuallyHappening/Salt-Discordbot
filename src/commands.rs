@@ -68,7 +68,7 @@ async fn defer(state: GlobalStateRef<'_>, interaction: &Interaction) -> color_ey
 async fn respond(
 	state: GlobalStateRef<'_>,
 	interaction: &Interaction,
-	msg: &str,
+	msg: impl Into<String>,
 ) -> color_eyre::Result<()> {
 	state
 		.client
@@ -89,7 +89,7 @@ async fn respond(
 async fn follow_up(
 	state: GlobalStateRef<'_>,
 	interaction: &Interaction,
-	msg: &str,
+	msg: impl AsRef<str>,
 ) -> color_eyre::Result<()> {
 	state
 		.client

@@ -161,13 +161,13 @@ impl Salt {
 	}
 }
 
-pub struct TransactionInfo {
+pub struct TransactionInfo<'a> {
 	pub amount: U256,
 	pub vault_address: Address,
 	pub recipient_address: Address,
 	pub data: Vec<u8>,
 	pub gas: GasEstimator,
-	pub logging: LiveLogging,
+	pub logging: &'a mut LiveLogging,
 	/// Checks that the transaction has been broadcasted before declaring the transaction successful
 	pub confirm_broadcast: bool,
 	/// If [TransactionInfo.confirm_broadcast] and the transaction was found to not be broadcasted
@@ -207,7 +207,7 @@ mod tests {
 			recipient_address: todo!(),
 			data: todo!(),
 			gas: todo!(),
-			logging: LiveLogging::from_cb(|str| ()),
+			logging: &mut LiveLogging::from_cb(|str| ()),
 			confirm_broadcast: todo!(),
 			auto_broadcast: todo!(),
 		}));
@@ -217,7 +217,7 @@ mod tests {
 impl Salt {
 	///
 	#[tracing::instrument(skip_all)]
-	pub async fn transaction(&self, info: TransactionInfo) -> Result<TransactionDone> {
+	pub async fn transaction<'a>(&self, info: TransactionInfo<'a>) -> Result<TransactionDone> {
 		debug!("Beginning transaction ...");
 
 		let TransactionInfo {
@@ -249,7 +249,7 @@ impl Salt {
 		// 		tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 		// 	}
 		// };
-		let (stop, recv) = oneshot::channel();
+		let (stop, recv_stop) = oneshot::channel();
 		let cmd = async move {
 			let output = self
 				.cmd([
@@ -275,7 +275,7 @@ impl Salt {
 			Result::<_, Error>::Ok(output)
 		};
 
-		let logging = logging(listener, &mut cb, recv);
+		let logging = logging(listener, &mut cb, recv_stop);
 
 		let (output, log) = tokio::join!(cmd, logging);
 

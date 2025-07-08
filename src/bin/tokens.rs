@@ -110,7 +110,7 @@ async fn main() -> color_eyre::Result<()> {
 				vault_address: env.faucet_testnet_salt_account_address,
 				recipient_address: PING,
 				data: calldata,
-				logging: salt_sdk::LiveLogging::from_cb(|msg| info!(%msg, "Transaction live logs")),
+				logging: &mut salt_sdk::LiveLogging::from_cb(|msg| info!(%msg, "Transaction live logs")),
 				gas: salt_sdk::GasEstimator::Mul(100.0),
 				confirm_broadcast: true,
 				auto_broadcast: true,

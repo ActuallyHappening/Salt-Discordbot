@@ -167,6 +167,7 @@ impl SomniaShannonPing {
 
 		// do transaction
 		let (send_logs, mut live_logs) = tokio::sync::mpsc::channel(10);
+		let mut live_logging = salt_sdk::LiveLogging::from_sender(send_logs);
 		let salt_config = salt_sdk::SaltConfig {
 			private_key: state.env.private_key.clone(),
 			orchestration_network_rpc_node: state.env.sepolia_arbitrum_rpc_endpoint.clone(),
@@ -179,7 +180,7 @@ impl SomniaShannonPing {
 			vault_address: state.env.faucet_testnet_salt_account_address,
 			recipient_address: SomniaShannonPing::SMART_CONTRACT_ADDR,
 			data: calldata,
-			logging: salt_sdk::LiveLogging::from_sender(send_logs),
+			logging: &mut live_logging,
 			gas: salt_sdk::GasEstimator::Mul(100.0),
 			confirm_broadcast: true,
 			auto_broadcast: true,
