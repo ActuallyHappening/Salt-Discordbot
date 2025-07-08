@@ -33,19 +33,19 @@ async fn main() -> color_eyre::Result<()> {
 
 	let amount = parse_ether(&amount)?;
 
-	salt
-		.transaction(TransactionInfo {
-			amount,
-			vault_address,
-			recipient_address,
-			data: vec![],
-			logging: LiveLogging::from_cb(|msg| info!(%msg)),
-			gas: GasEstimator::Default,
-			confirm_publish: true,
-		})
-		.timeout(Duration::from_secs(30))
-		.await?
-		.wrap_err("Couldn't do salt transaction")?;
+	salt.transaction(TransactionInfo {
+		amount,
+		vault_address,
+		recipient_address,
+		data: vec![],
+		logging: LiveLogging::from_cb(|msg| info!(%msg)),
+		gas: GasEstimator::Default,
+		confirm_publish: true,
+	})
+	// .timeout(Duration::from_secs(60 * 2))
+	.await
+	// .wrap_err("Transaction timed out")?
+	.wrap_err("Couldn't do salt transaction")?;
 
 	info!("Salt transaction completed");
 

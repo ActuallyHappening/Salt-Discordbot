@@ -191,7 +191,6 @@ mod tests {
 			unimplemented!(),
 			unimplemented!(),
 			unimplemented!(),
-			unimplemented!(),
 		));
 		is_send(salt.transaction(TransactionInfo {
 			amount: todo!(),
@@ -265,13 +264,9 @@ impl Salt {
 			Result::<_, Error>::Ok(output)
 		};
 
-		let mut broadcasted_tx_hash: Option<TxHash> = None;
-		let logging = logging(listener, cb, recv, &mut broadcasted_tx_hash);
+		let logging = logging(listener, cb, recv);
 
-		let (output, log_res) = tokio::join!(cmd, logging);
-		if let Err(err) = log_res {
-			error!(%err, "Error running logging task");
-		}
+		let (output, log) = tokio::join!(cmd, logging);
 
 		debug!(
 			"Finished transaction {}",
@@ -282,8 +277,14 @@ impl Salt {
 			}
 		);
 
-		let broadcasted_tx_hash = broadcasted_tx_hash.ok_or(Error::NoBroadcastedTx)?;
-		output?;
+		let log = log
+			.wrap_err("Error running logging task")
+			.map_err(Error::LiveLogging)?;
+		let Some(broadcasted_tx_hash) = log else {
+			return Err(Error::NoBroadcastedTx);
+		};
+
+		let _output = output?;
 		let done = TransactionDone {
 			hash: broadcasted_tx_hash,
 		};
@@ -300,11 +301,18 @@ impl Salt {
 				.map_err(Error::CouldntConfirmTx)?;
 			async move {
 				loop {
-					if let Ok(_) = provider.watch_pending_transaction(PendingTransactionConfig::new(broadcasted_tx_hash)).await {
+					tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+					if let Ok(Some(tx)) = provider.get_transaction_by_hash(broadcasted_tx_hash).await {
+						debug!(?tx, "Polling confirmed the transaction was broadcasted");
 						break;
 					}
 				}
-			}.timeout(Duration::from_secs(15)).await.wrap_err("Couldn't find broadcasted transaction, does the tx pass account policies and are the Robos online?").map_err(Error::CouldntConfirmTx)?;
+			}
+			.timeout(Duration::from_secs(15))
+			.await
+			.wrap_err("Couldn't find broadcasted transaction, does the tx pass account policies and are the Robos online?")
+			.note(format!("Hash: {}", broadcasted_tx_hash))
+			.map_err(Error::CouldntConfirmTx)?;
 		}
 
 		Ok(done)

@@ -17,14 +17,14 @@ pub enum LiveLogging {
 #[derive(Debug, Deserialize)]
 pub enum Log {
 	GenericMessage(String),
-	BroadcastedTx(String),
+	BroadcastedTxHash(TxHash),
 }
 
 impl std::fmt::Display for Log {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Log::GenericMessage(msg) => write!(f, "{}", msg),
-			Log::BroadcastedTx(addr) => write!(f, "Broadcasted transaction: {}", addr),
+			Log::BroadcastedTxHash(addr) => write!(f, "Broadcasted transaction: {}", addr),
 		}
 	}
 }
@@ -52,7 +52,7 @@ fn log_parses() -> color_eyre::Result<()> {
 	let str = r#"{"BroadcastedTx":"6yWEBfXhAIJSCJTqQoIzRFpc9QC51ckbym57iH99cIYJGE5yoACAgsSIgIA="}"#;
 	let log = Log::from_str(str);
 	eprintln!("{:?}", log);
-	assert!(matches!(log, Log::BroadcastedTx(_)));
+	assert!(matches!(log, Log::BroadcastedTxHash(_)));
 	Ok(())
 }
 
@@ -98,18 +98,20 @@ pub(crate) async fn logging(
 	listener: tokio::net::TcpListener,
 	mut logging: LiveLogging,
 	mut stop_listening: tokio::sync::oneshot::Receiver<()>,
-	broadcasted_tx_hash: &mut Option<TxHash>,
-) -> Result<(), color_eyre::Report> {
+) -> Result<Option<TxHash>, color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
 	const MARKER: char = '🪵';
+
+	let mut broadcasted_tx_hash: Option<TxHash> = None;
+
 	loop {
 		trace!("Waiting for new connection");
 		let mut socket = tokio::select! {
 			biased;
 			_ = &mut stop_listening => {
 				debug!("Stopping instead of accepting another connection");
-				return Ok(());
+				return Ok(broadcasted_tx_hash);
 			}
 			res = listener.accept() => {
 				let (socket, _) = res.wrap_err("Failed to accept connection")?;
@@ -125,7 +127,7 @@ pub(crate) async fn logging(
 				biased;
 				_ = &mut stop_listening => {
 					debug!("Stopping instead of reading any more data");
-					return Ok(());
+					return Ok(broadcasted_tx_hash);
 				}
 				bytes_read = socket.read_buf(&mut bytes) => {
 					bytes_read.wrap_err("Couldn't read to buf")?
@@ -139,12 +141,12 @@ pub(crate) async fn logging(
 
 			let mut send = async |msg: &str| {
 				let log = Log::from_str(msg);
-				match &log {
-					Log::BroadcastedTx(tx) => {
-						*broadcasted_tx_hash = Some(TxHash::new(alloy_primitives::keccak256(tx).0));
+				match log {
+					Log::BroadcastedTxHash(tx) => {
+						broadcasted_tx_hash = Some(tx);
 					}
-					Log::GenericMessage(_) => {
-						logging.send(log).await;
+					Log::GenericMessage(msg) => {
+						logging.send(Log::GenericMessage(msg)).await;
 					}
 				}
 			};

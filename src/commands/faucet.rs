@@ -332,11 +332,6 @@ impl SupportedChain {
 					.wrap_err("Couldn't follow up on a failed transaction with an error message")?;
 			}
 			Ok(data) => {
-				let explorer_url = self.block_explorer().transaction_explorer_url(data.hash)?;
-				follow_up(&format!(
-					"Final stage: The robos have co-signed and broadcasted the transaction!\n*See it here: <{explorer_url}>*",
-				))
-				.await?;
 				// still registers even if expanded limits
 				state
 					.ratelimits
@@ -345,8 +340,9 @@ impl SupportedChain {
 					.register(&ratelimit_key)
 					.await
 					.wrap_err("Couldn't register successful bot transaction")?;
+				let explorer_url = self.block_explorer().transaction_explorer_url(data.hash)?;
 				follow_up(&format!(
-					"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}"
+					"Successful faucet of {amount_eth}{token_name} ({chain_name}) to {address}\nSee the final broadcasted transaction here: <{explorer_url}>"
 				))
 				.await?;
 				info!("Finished handling the discord interaction");
