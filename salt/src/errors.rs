@@ -23,6 +23,12 @@ pub enum Error {
 	#[error("Something went wrong collecting salt-asset-manager logs: {0}")]
 	LiveLogging(#[source] color_eyre::Report),
 
+	#[error("The salt-asset-manager repo didn't communicate the broadcasted tx")]
+	NoBroadcastedTx,
+
+	#[error("Couldn't confirm a Salt (INTU) transaction: {0}")]
+	CouldntConfirmTx(#[source] color_eyre::Report),
+
 	#[error("Subprocess exited badly: {0:?}")]
 	SubprocessExitedBadly(ExitStatus),
 

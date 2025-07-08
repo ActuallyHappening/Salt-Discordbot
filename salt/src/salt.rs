@@ -1,16 +1,18 @@
-use std::net::SocketAddrV4;
+use std::{net::SocketAddrV4, time::Duration};
 
 use crate::{
 	cli::{self, Output},
 	prelude::*,
 };
 
+use alloy::providers::{PendingTransactionConfig, Provider};
 use alloy_primitives::{
-	Address, U256,
+	Address, TxHash, U256,
 	utils::{ParseUnits, Unit},
 };
 pub use live_logging::*;
 use tokio::sync::oneshot;
+use ystd::time::FutureTimeoutExt as _;
 mod live_logging;
 
 pub struct Salt {
@@ -172,19 +174,23 @@ pub enum GasEstimator {
 	Mul(f64),
 }
 
+pub struct TransactionDone {
+	pub hash: TxHash,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	#[test]
 	#[allow(unreachable_code, unused)]
 	fn api_is_send() {
-		fn is_send<T: Sync>(_t: T) {}
+		fn is_send<T: Send>(_t: T) {}
 		let salt: Salt = unimplemented!();
 		is_send(logging(
 			unimplemented!(),
 			unimplemented!(),
 			unimplemented!(),
-			unimplemented!()
+			unimplemented!(),
 		));
 		is_send(salt.transaction(TransactionInfo {
 			amount: todo!(),
@@ -201,7 +207,7 @@ mod tests {
 impl Salt {
 	///
 	#[tracing::instrument(skip_all)]
-	pub async fn transaction(&self, info: TransactionInfo) -> Result<Output> {
+	pub async fn transaction(&self, info: TransactionInfo) -> Result<TransactionDone> {
 		debug!("Beginning transaction ...");
 
 		let TransactionInfo {
@@ -258,7 +264,7 @@ impl Salt {
 			Result::<_, Error>::Ok(output)
 		};
 
-		let mut broadcasted_tx_hash = None;
+		let mut broadcasted_tx_hash: Option<TxHash> = None;
 		let logging = logging(listener, cb, recv, &mut broadcasted_tx_hash);
 
 		let (output, log_res) = tokio::join!(cmd, logging);
@@ -275,12 +281,31 @@ impl Salt {
 			}
 		);
 
-		if confirm_publish {
-			trace!("Continuing to listen to transaction");
+		let broadcasted_tx_hash = broadcasted_tx_hash.ok_or(Error::NoBroadcastedTx)?;
+		output?;
+		let done = TransactionDone {
+			hash: broadcasted_tx_hash,
+		};
 
-			error!("TODO: Get info about transaction like TxID from JS transaction function");
+		if confirm_publish {
+			let provider = alloy::providers::ProviderBuilder::new()
+				.connect(self.config.broadcasting_network_rpc_node.as_str())
+				.await
+				.wrap_err("Couldn't connect to broadcasting network RPC node")
+				.note(format!(
+					"broadcasting RPC node: {}",
+					self.config.broadcasting_network_rpc_node
+				))
+				.map_err(Error::CouldntConfirmTx)?;
+			async move {
+				loop {
+					if let Ok(_) = provider.watch_pending_transaction(PendingTransactionConfig::new(broadcasted_tx_hash)).await {
+						break;
+					}
+				}
+			}.timeout(Duration::from_secs(15)).await.wrap_err("Couldn't find broadcasted transaction, does the tx pass account policies and are the Robos online?").map_err(Error::CouldntConfirmTx)?;
 		}
 
-		output
+		Ok(done)
 	}
 }

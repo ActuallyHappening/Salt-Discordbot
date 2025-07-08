@@ -33,7 +33,7 @@ async fn main() -> color_eyre::Result<()> {
 
 	let amount = parse_ether(&amount)?;
 
-	let transaction = salt
+	salt
 		.transaction(TransactionInfo {
 			amount,
 			vault_address,
@@ -47,7 +47,7 @@ async fn main() -> color_eyre::Result<()> {
 		.await?
 		.wrap_err("Couldn't do salt transaction")?;
 
-	info!("Salt transaction completed:\n{}", transaction);
+	info!("Salt transaction completed");
 
 	Ok(())
 }
