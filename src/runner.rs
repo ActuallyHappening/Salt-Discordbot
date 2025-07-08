@@ -48,7 +48,7 @@ pub async fn runner(state: GlobalState, mut shard: Shard) {
 					warn!("Automatically cancelling a processing interaction because receiving a shutdown signal");
 					return;
 				}
-				res = process_interactions(state.clone(), event).timeout(Duration::from_secs(60 * 2))
+				res = process_interactions(state.clone(), event).timeout(Duration::from_secs(60 * 3))
 				 => {
 					if let Err(err) = res {
 						warn!(?err, "Timing out a processing interaction");

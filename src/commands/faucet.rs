@@ -293,6 +293,13 @@ impl SupportedChain {
 		let logging = async move {
 			while let Some(log) = live_logs.recv().await {
 				info!(%log, "Sending live log");
+				// no need to clobber discord with useless logs
+				if matches!(
+					log,
+					salt_sdk::Log::AutoBroadcastedSuccessfully | salt_sdk::Log::BroadcastedTx(_)
+				) {
+					return Ok(());
+				}
 				follow_up(&log.to_string())
 					.await
 					.wrap_err("Live logging failed to send")?;

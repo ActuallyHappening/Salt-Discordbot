@@ -35,6 +35,10 @@ pub struct SaltConfig {
 	pub broadcasting_network_id: u64,
 }
 
+impl SaltConfig {
+	const ROBO_WAIT: u64 = 10;
+}
+
 impl std::fmt::Debug for SaltConfig {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let map = self.clone().iter();
@@ -311,6 +315,7 @@ impl Salt {
 			match async {
 				loop {
 					tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+					trace!("Searching for tx from hash ...");
 					if let Some(tx) = provider.get_transaction_by_hash(broadcasted_tx_hash).await.wrap_err("Couldn't get transaction by hash?").map_err(Error::CouldntConfirmTx)? {
 						debug!(?tx, "Polling confirmed the transaction was broadcasted");
 						break Result::<_, Error>::Ok(tx);
@@ -319,10 +324,14 @@ impl Salt {
 					}
 				}
 			}
-			.timeout(Duration::from_secs(6))
+			.timeout(Duration::from_secs(SaltConfig::ROBO_WAIT))
 			.await
 			.wrap_err("Couldn't find broadcasted transaction, does the tx pass account policies and are the Robos online?")
 			.map_err(Error::CouldntConfirmTx) {
+				// didn't time out
+				Ok(res) => {
+					let _tx = res?;
+				}
 				Err(timeout) => {
 					if auto_broadcast {
 						cb.send(Log::AutoBroadcasting).await;
@@ -335,16 +344,12 @@ impl Salt {
 						if recipt.transaction_hash != broadcasted_tx_hash {
 							error!("What is going on? Transaction hash mismatch");
 						}
+						cb.send(Log::AutoBroadcastedSuccessfully).await;
 					} else {
 						return Err(timeout);
 					}
 				}
-				// didn't time out
-				Ok(res) => {
-					res?;
-				}
 			}
-			// .wrap_err("Couldn't fetch transaction by hash?").map_err(Error::CouldntConfirmTx)?;
 		}
 
 		debug!("Finished transaction successfully");

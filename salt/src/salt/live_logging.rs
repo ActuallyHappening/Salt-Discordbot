@@ -2,7 +2,7 @@ use alloy_primitives::{Address, TxHash};
 use serde::Deserialize;
 use tokio::io::AsyncReadExt as _;
 
-use crate::prelude::*;
+use crate::{SaltConfig, prelude::*};
 
 /// A convenience utility type,
 /// ```rust
@@ -19,6 +19,7 @@ pub enum Log {
 	GenericMessage(String),
 	BroadcastedTx(String),
 	AutoBroadcasting,
+	AutoBroadcastedSuccessfully,
 }
 
 impl std::fmt::Display for Log {
@@ -28,7 +29,12 @@ impl std::fmt::Display for Log {
 			Log::BroadcastedTx(addr) => write!(f, "Broadcasted transaction: {}", addr),
 			Log::AutoBroadcasting => write!(
 				f,
-				"**Warning**: It appears the Robos aren't broadcasting the transaction themselves\nBroadcasting it ourselves"
+				"**Warning**: It appears the Robos aren't broadcasting the transaction themselves after waiting {} seconds, broadcasting it ourselves",
+				SaltConfig::ROBO_WAIT
+			),
+			Log::AutoBroadcastedSuccessfully => write!(
+				f,
+				"Since the Robos aren't broadcasting, we have broadcasted the transaction ourselves"
 			),
 		}
 	}
@@ -148,8 +154,8 @@ pub(crate) async fn logging(
 				let log = Log::from_str(msg);
 				match log {
 					Log::BroadcastedTx(tx) => {
-						// handle this log differently
-						broadcasted_tx_hash = Some(tx);
+						broadcasted_tx_hash = Some(tx.clone());
+						logging.send(Log::BroadcastedTx(tx)).await;
 					}
 					log => {
 						logging.send(log).await;
