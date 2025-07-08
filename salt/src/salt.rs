@@ -318,6 +318,7 @@ impl Salt {
 					trace!("Searching for tx from hash ...");
 					if let Some(tx) = provider.get_transaction_by_hash(broadcasted_tx_hash).await.wrap_err("Couldn't get transaction by hash?").map_err(Error::CouldntConfirmTx)? {
 						debug!(?tx, "Polling confirmed the transaction was broadcasted");
+						cb.send(Log::RobosBroadcastedSuccessfully).await;
 						break Result::<_, Error>::Ok(tx);
 					} else {
 						trace!("Polled {} for transaction hash {} and found it doesn't exist (yet)", self.config.broadcasting_network_rpc_node, ystd::hex::encode(&broadcasted_tx) );

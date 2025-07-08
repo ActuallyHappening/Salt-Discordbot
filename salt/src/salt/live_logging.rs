@@ -20,13 +20,14 @@ pub enum Log {
 	BroadcastedTx(String),
 	AutoBroadcasting,
 	AutoBroadcastedSuccessfully,
+	RobosBroadcastedSuccessfully,
 }
 
 impl std::fmt::Display for Log {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Log::GenericMessage(msg) => write!(f, "{}", msg),
-			Log::BroadcastedTx(addr) => write!(f, "Broadcasted transaction: {}", addr),
+			Log::BroadcastedTx(addr) => write!(f, "Transaction to be broadcasted: {}", addr),
 			Log::AutoBroadcasting => write!(
 				f,
 				"**Warning**: It appears the Robos aren't broadcasting the transaction themselves after waiting {} seconds, broadcasting it ourselves",
@@ -35,6 +36,10 @@ impl std::fmt::Display for Log {
 			Log::AutoBroadcastedSuccessfully => write!(
 				f,
 				"Since the Robos aren't broadcasting, we have broadcasted the transaction ourselves"
+			),
+			Log::RobosBroadcastedSuccessfully => write!(
+				f,
+				"The Robo guardians have also been kind enough to broadcast the transaction as well"
 			),
 		}
 	}
