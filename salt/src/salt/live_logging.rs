@@ -17,7 +17,7 @@ pub enum LiveLogging {
 #[derive(Debug, Deserialize)]
 pub enum Log {
 	GenericMessage(String),
-	BroadcastedTx(Address),
+	BroadcastedTx(String),
 }
 
 impl std::fmt::Display for Log {
@@ -31,12 +31,29 @@ impl std::fmt::Display for Log {
 
 impl Log {
 	pub fn from_str(msg: &str) -> Self {
-		if let Ok(log) = serde_json::from_str(msg) {
-			log
+		if let Ok(log) = serde_json::from_str::<serde_json::Value>(msg) {
+			// parses as json
+			match serde_json::from_value(log) {
+				Ok(log) => log,
+				Err(err) => {
+					warn!(?err, "Couldn't parse valid JSON into Rust Log struct");
+					Log::GenericMessage(msg.to_owned())
+				}
+			}
 		} else {
-			Log::GenericMessage(msg.to_string())
+			Log::GenericMessage(msg.to_owned())
 		}
 	}
+}
+
+#[test]
+fn log_parses() -> color_eyre::Result<()> {
+	// tracing_subscriber::fmt().init();
+	let str = r#"{"BroadcastedTx":"6yWEBfXhAIJSCJTqQoIzRFpc9QC51ckbym57iH99cIYJGE5yoACAgsSIgIA="}"#;
+	let log = Log::from_str(str);
+	eprintln!("{:?}", log);
+	assert!(matches!(log, Log::BroadcastedTx(_)));
+	Ok(())
 }
 
 impl LiveLogging {
