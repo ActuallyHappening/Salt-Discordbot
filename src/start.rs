@@ -88,7 +88,13 @@ pub async fn start(keep_restarting: Arc<AtomicBool>, shutting_down: Arc<AtomicBo
 	let mut senders = Vec::with_capacity(shard_len);
 	// let mut tasks = Vec::with_capacity(shard_len);
 	let mut tasks = tokio::task::JoinSet::new();
-	let state = GlobalState::new(client, env, ratelimits, Notify::new(), shutting_down.clone())?;
+	let state = GlobalState::new(
+		client,
+		env,
+		ratelimits,
+		Notify::new(),
+		shutting_down.clone(),
+	)?;
 
 	for shard in shards {
 		senders.push(shard.sender());

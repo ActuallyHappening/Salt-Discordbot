@@ -1,6 +1,9 @@
 use std::{sync::atomic::Ordering, time::Duration};
 
-use crate::{commands::{defer, respond}, prelude::*};
+use crate::{
+	commands::{defer, respond},
+	prelude::*,
+};
 use color_eyre::{Section, eyre::Context as _};
 use twilight_interactions::command::{CommandModel, CreateCommand};
 use twilight_model::{

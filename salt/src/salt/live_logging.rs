@@ -26,7 +26,10 @@ impl std::fmt::Display for Log {
 		match self {
 			Log::GenericMessage(msg) => write!(f, "{}", msg),
 			Log::BroadcastedTx(addr) => write!(f, "Broadcasted transaction: {}", addr),
-			Log::AutoBroadcasting => write!(f, "**Warning**: It appears the Robos aren't broadcasting the transaction themselves\nBroadcasting it ourselves")
+			Log::AutoBroadcasting => write!(
+				f,
+				"**Warning**: It appears the Robos aren't broadcasting the transaction themselves\nBroadcasting it ourselves"
+			),
 		}
 	}
 }

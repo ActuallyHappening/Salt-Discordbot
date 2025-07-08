@@ -61,7 +61,8 @@ impl Balance {
 			.await?;
 		let account_addr = state.env.faucet_testnet_salt_account_address;
 
-		let sst_balance = ParseUnits::from(provider.get_balance(account_addr).await?).format_units(Unit::ETHER);
+		let sst_balance =
+			ParseUnits::from(provider.get_balance(account_addr).await?).format_units(Unit::ETHER);
 		let erc20_addrs = [standard_sdk::USDC, standard_sdk::WSOL, standard_sdk::WBTC];
 		let mut erc20_tokens = vec![];
 		struct TokenInfo {

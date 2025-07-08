@@ -173,6 +173,7 @@ pub struct TransactionInfo {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
 pub enum GasEstimator {
+	/// Suitable for normal, non-contract transactions
 	#[default]
 	Default,
 	Mul(f64),
@@ -280,17 +281,17 @@ impl Salt {
 		let Some(broadcasted_tx) = log else {
 			return Err(Error::NoBroadcastedTx);
 		};
-		let broadcasted_tx = ystd::base64::decode(&broadcasted_tx)
-			.wrap_err("Couldn't decode base64 encoded transaction as sent through live logging")
+		trace!(%broadcasted_tx);
+		let broadcasted_tx = ystd::hex::decode(&broadcasted_tx)
+			.wrap_err("Couldn't decode hex encoded transaction as sent through live logging")
 			.map_err(Error::CouldntConfirmTx)?;
-
 
 		let _output = output?;
 		let broadcasted_tx_hash = alloy::primitives::utils::keccak256(&broadcasted_tx);
 		let done = TransactionDone {
 			hash: broadcasted_tx_hash,
 		};
-		
+
 		debug!(
 			"Tx hex: {}, Tx hash hex: {}",
 			ystd::hex::encode(&broadcasted_tx),
@@ -314,18 +315,22 @@ impl Salt {
 						debug!(?tx, "Polling confirmed the transaction was broadcasted");
 						break Result::<_, Error>::Ok(tx);
 					} else {
-						trace!("Polled {} for transaction hash {} and found it doesn't exist (yet)", ystd::hex::encode(&broadcasted_tx), self.config.broadcasting_network_rpc_node);
+						trace!("Polled {} for transaction hash {} and found it doesn't exist (yet)", self.config.broadcasting_network_rpc_node, ystd::hex::encode(&broadcasted_tx) );
 					}
 				}
 			}
-			.timeout(Duration::from_secs(60))
+			.timeout(Duration::from_secs(6))
 			.await
 			.wrap_err("Couldn't find broadcasted transaction, does the tx pass account policies and are the Robos online?")
 			.map_err(Error::CouldntConfirmTx) {
 				Err(timeout) => {
 					if auto_broadcast {
 						cb.send(Log::AutoBroadcasting).await;
-						let pending = provider.send_raw_transaction(&broadcasted_tx).await.wrap_err("Couldn't broadcast transaction").map_err(Error::CouldntConfirmTx)?;
+						let pending = provider
+							.send_raw_transaction(&broadcasted_tx)
+							.await
+							.wrap_err(format!("Couldn't broadcast transaction, run: cast publish --rpc-url {} {}", self.config.broadcasting_network_rpc_node, ystd::hex::encode(&broadcasted_tx)))
+							.map_err(Error::CouldntConfirmTx)?;
 						let recipt = pending.get_receipt().await.wrap_err("Couldn't get receipt").map_err(Error::CouldntConfirmTx)?;
 						if recipt.transaction_hash != broadcasted_tx_hash {
 							error!("What is going on? Transaction hash mismatch");

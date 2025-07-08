@@ -285,7 +285,8 @@ impl SupportedChain {
 			recipient_address: address,
 			data: vec![],
 			logging: salt_sdk::LiveLogging::from_sender(send_logs),
-			gas: salt_sdk::GasEstimator::Mul(10.0),
+			// very high as error handling of invalid transactions is annoying
+			gas: salt_sdk::GasEstimator::Mul(100.0),
 			confirm_broadcast: true,
 			auto_broadcast: true,
 		});

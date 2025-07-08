@@ -97,5 +97,6 @@ async fn follow_up(
 		.create_followup(&interaction.token)
 		.content(msg.as_ref())
 		.await
-		.wrap_err("Couldn't followup a discord interaction").map(|_| ())
+		.wrap_err("Couldn't followup a discord interaction")
+		.map(|_| ())
 }

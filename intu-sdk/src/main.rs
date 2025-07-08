@@ -1,7 +1,19 @@
 use std::str::FromStr as _;
 
 use alloy::{
-	consensus::{EthereumTxEnvelope, EthereumTypedTransaction, SignableTransaction, Transaction, TxEip4844, TxLegacy}, eips::{BlockNumberOrTag, Encodable2718}, hex::FromHex as _, network::{EthereumWallet, TransactionBuilder}, primitives::{address, utils::parse_ether, Address, Bytes, TxHash, U256}, providers::Provider, rpc::types::TransactionRequest, signers::local::PrivateKeySigner, sol, sol_types::SolCall
+	consensus::{
+		EthereumTxEnvelope, EthereumTypedTransaction, SignableTransaction, Transaction, TxEip4844,
+		TxLegacy,
+	},
+	eips::{BlockNumberOrTag, Encodable2718},
+	hex::FromHex as _,
+	network::{EthereumWallet, TransactionBuilder},
+	primitives::{Address, Bytes, TxHash, U256, address, utils::parse_ether},
+	providers::Provider,
+	rpc::types::TransactionRequest,
+	signers::local::PrivateKeySigner,
+	sol,
+	sol_types::SolCall,
 };
 use base64::prelude::*;
 use color_eyre::eyre::{Context as _, eyre};
@@ -18,7 +30,10 @@ const SEPOLIA_ARBITRUM_RPC: &str = "https://sepolia-rollup.arbitrum.io/rpc";
 async fn main() -> color_eyre::Result<()> {
 	app_tracing::install_tracing("info,intu_sdk=trace,intu_cli=trace")?;
 
-	let signer: PrivateKeySigner = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/private-key")).trim().parse()?;
+	let signer: PrivateKeySigner =
+		include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/private-key"))
+			.trim()
+			.parse()?;
 	let wallet = EthereumWallet::new(signer);
 	let provider = alloy::providers::ProviderBuilder::new()
 		.wallet(wallet.clone())
@@ -32,9 +47,10 @@ async fn main() -> color_eyre::Result<()> {
 			.get_transaction_by_hash(TxHash::from_str(
 				// "0xe6b5ee3c9a20879861aa20aaf2f441dc06bb1a0fa5bdc6c4882807001a25a569", // arb-sep-eth 0.005 to 0x45bFd673ad67682CCBe47C38234d7CE4aD288a5b
 				"0x4be07fce98ab1ca937ba9fe158bb7dc46b92f635050cabaa614c9d5d01f1da5f", // sep-eth 0.005 to 0x45bFd673ad67682CCBe47C38234d7CE4aD288a5b
-				// "0xc9bfabe550c0304d1c137ad574fec8bd6d1216b0d6e32fdbcc8697e3112289fa",
+				                                                                      // "0xc9bfabe550c0304d1c137ad574fec8bd6d1216b0d6e32fdbcc8697e3112289fa",
 			)?)
-			.await?.unwrap();
+			.await?
+			.unwrap();
 		debug!(?example_propose);
 		let input = example_propose.input();
 		let args = proposeTransactionCall::abi_decode(&input)?;
@@ -48,13 +64,14 @@ async fn main() -> color_eyre::Result<()> {
 		use alloy::consensus::transaction::RlpEcdsaDecodableTx;
 		use alloy::eips::Decodable2718;
 		// use alloy::rlp::decode::Decodable;
-		let tx: EthereumTxEnvelope<alloy::consensus::TxEip4844Variant> = EthereumTxEnvelope::decode_2718(&mut &example_proposed_tx[..])?;
+		let tx: EthereumTxEnvelope<alloy::consensus::TxEip4844Variant> =
+			EthereumTxEnvelope::decode_2718(&mut &example_proposed_tx[..])?;
 		debug!(final_tx = ?tx);
 
 		let experiment: Vec<u8> = Vec::from_hex("0x45bfd673ad67682ccbe47c38234d7ce4ad288a5b")?;
 		info!(?experiment);
 
-		return Ok(())
+		return Ok(());
 	}
 
 	let vault_info = intu_contract.vaultInfos().call().await?;
@@ -82,7 +99,7 @@ async fn main() -> color_eyre::Result<()> {
 		.with_gas_limit(gas)
 		.build(&wallet)
 		.await?;
-		// .build_unsigned()?;
+	// .build_unsigned()?;
 
 	debug!(?tx);
 

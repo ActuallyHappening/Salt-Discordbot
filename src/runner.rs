@@ -1,6 +1,10 @@
-use std::{sync::{
-	atomic::{AtomicBool, Ordering}, LazyLock
-}, time::Duration};
+use std::{
+	sync::{
+		LazyLock,
+		atomic::{AtomicBool, Ordering},
+	},
+	time::Duration,
+};
 
 use crate::{common::GlobalState, prelude::*};
 use tokio::sync::Notify;

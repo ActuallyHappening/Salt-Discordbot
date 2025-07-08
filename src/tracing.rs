@@ -31,11 +31,14 @@ pub async fn install_tracing(filter: &str) -> color_eyre::Result<Guard> {
 	// 	UtcOffset::UTC
 	// });
 	// let timer = OffsetTime::new(offset, format_description!("[hour]:[minute]:[second]"));
-	
+
 	color_eyre::install()?;
 
-	Utf8PathBuf::from(LOGS_DIR).assert_dir().await.wrap_err("Couldn't find logs dir")?;
-	
+	Utf8PathBuf::from(LOGS_DIR)
+		.assert_dir()
+		.await
+		.wrap_err("Couldn't find logs dir")?;
+
 	let (file, guard) =
 		tracing_appender::non_blocking(tracing_appender::rolling::daily(LOGS_DIR, PREFIX));
 	let file_layer = fmt::layer()
@@ -56,7 +59,6 @@ pub async fn install_tracing(filter: &str) -> color_eyre::Result<Guard> {
 		.with(fmt_layer)
 		.with(ErrorLayer::default())
 		.init();
-
 
 	Ok(Guard { guard })
 }
