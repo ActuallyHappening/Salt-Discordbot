@@ -35,11 +35,11 @@ impl std::fmt::Display for Log {
 			),
 			Log::AutoBroadcastedSuccessfully => write!(
 				f,
-				"Since the Robos aren't broadcasting, we have broadcasted the transaction ourselves"
+				"Stage 5: Since the Robos aren't broadcasting, we have broadcasted the transaction ourselves"
 			),
 			Log::RobosBroadcastedSuccessfully => write!(
 				f,
-				"The Robo guardians have also been kind enough to broadcast the transaction as well"
+				"Stage 5: The Robo guardians have also been kind enough to broadcast the transaction as well"
 			),
 		}
 	}
