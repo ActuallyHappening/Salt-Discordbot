@@ -41,6 +41,7 @@ async fn main() -> color_eyre::Result<()> {
 		logging: LiveLogging::from_cb(|msg| info!(%msg)),
 		gas: GasEstimator::Default,
 		confirm_publish: true,
+		auto_broadcast: true,
 	})
 	// .timeout(Duration::from_secs(60 * 2))
 	.await

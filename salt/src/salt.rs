@@ -165,6 +165,7 @@ pub struct TransactionInfo {
 	pub gas: GasEstimator,
 	pub logging: LiveLogging,
 	pub confirm_publish: bool,
+	pub auto_broadcast: bool,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
@@ -200,6 +201,7 @@ mod tests {
 			gas: todo!(),
 			logging: LiveLogging::from_cb(|str| ()),
 			confirm_publish: todo!(),
+			auto_broadcast: todo!(),
 		}));
 	}
 }
@@ -216,8 +218,9 @@ impl Salt {
 			recipient_address,
 			data,
 			gas,
-			logging: cb,
+			logging: mut cb,
 			confirm_publish,
+			auto_broadcast,
 		} = info;
 
 		let addr: SocketAddrV4 = "127.0.0.1:0000".parse().unwrap();
@@ -264,27 +267,20 @@ impl Salt {
 			Result::<_, Error>::Ok(output)
 		};
 
-		let logging = logging(listener, cb, recv);
+		let logging = logging(listener, &mut cb, recv);
 
 		let (output, log) = tokio::join!(cmd, logging);
-
-		debug!(
-			"Finished transaction {}",
-			if output.is_ok() {
-				"successfully"
-			} else {
-				"unsuccessfully"
-			}
-		);
 
 		let log = log
 			.wrap_err("Error running logging task")
 			.map_err(Error::LiveLogging)?;
-		let Some(broadcasted_tx_hash) = log else {
+		let Some(broadcasted_tx) = log else {
 			return Err(Error::NoBroadcastedTx);
 		};
+		let broadcasted_ts = ystd::base64::decode(broadcasted_tx).map_err(Error::CouldntConfirmTx)?;
 
 		let _output = output?;
+		let broadcasted_tx_hash = alloy::primitives::utils::keccak256(broadcasted_tx.as_bytes());
 		let done = TransactionDone {
 			hash: broadcasted_tx_hash,
 		};
@@ -299,21 +295,38 @@ impl Salt {
 					self.config.broadcasting_network_rpc_node
 				))
 				.map_err(Error::CouldntConfirmTx)?;
-			async move {
+			match async move {
 				loop {
 					tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-					if let Ok(Some(tx)) = provider.get_transaction_by_hash(broadcasted_tx_hash).await {
+					if let Some(tx) = provider.get_transaction_by_hash(broadcasted_tx_hash).await.wrap_err("Couldn't get transaction by hash?").map_err(Error::CouldntConfirmTx)? {
 						debug!(?tx, "Polling confirmed the transaction was broadcasted");
-						break;
+						break Result::<_, Error>::Ok(tx);
+					} else {
+						trace!("Polled {} for transaction hash {broadcasted_tx} and found it doesn't exist (yet)", self.config.broadcasting_network_rpc_node);
 					}
 				}
 			}
-			.timeout(Duration::from_secs(15))
+			.timeout(Duration::from_secs(60))
 			.await
 			.wrap_err("Couldn't find broadcasted transaction, does the tx pass account policies and are the Robos online?")
-			.note(format!("Hash: {}", broadcasted_tx_hash))
-			.map_err(Error::CouldntConfirmTx)?;
+			.map_err(Error::CouldntConfirmTx) {
+				Err(timeout) => {
+					if auto_broadcast {
+						cb.send(Log::AutoBroadcasting).await;
+						provider.send_raw_transaction(&);
+					} else {
+						return Err(timeout);
+					}
+				}
+				// didn't time out
+				Ok(res) => {
+					res?;
+				}
+			}
+			// .wrap_err("Couldn't fetch transaction by hash?").map_err(Error::CouldntConfirmTx)?;
 		}
+
+		debug!("Finished transaction successfully");
 
 		Ok(done)
 	}

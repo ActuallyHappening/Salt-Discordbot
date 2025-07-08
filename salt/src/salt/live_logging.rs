@@ -17,14 +17,16 @@ pub enum LiveLogging {
 #[derive(Debug, Deserialize)]
 pub enum Log {
 	GenericMessage(String),
-	BroadcastedTxHash(TxHash),
+	BroadcastedTx(String),
+	AutoBroadcasting,
 }
 
 impl std::fmt::Display for Log {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Log::GenericMessage(msg) => write!(f, "{}", msg),
-			Log::BroadcastedTxHash(addr) => write!(f, "Broadcasted transaction: {}", addr),
+			Log::BroadcastedTx(addr) => write!(f, "Broadcasted transaction: {}", addr),
+			Log::AutoBroadcasting => write!(f, "**Warning**: It appears the Robos aren't broadcasting the transaction themselves\nBroadcasting it ourselves")
 		}
 	}
 }
@@ -52,7 +54,7 @@ fn log_parses() -> color_eyre::Result<()> {
 	let str = r#"{"BroadcastedTx":"6yWEBfXhAIJSCJTqQoIzRFpc9QC51ckbym57iH99cIYJGE5yoACAgsSIgIA="}"#;
 	let log = Log::from_str(str);
 	eprintln!("{:?}", log);
-	assert!(matches!(log, Log::BroadcastedTxHash(_)));
+	assert!(matches!(log, Log::BroadcastedTx(_)));
 	Ok(())
 }
 
@@ -75,7 +77,7 @@ impl LiveLogging {
 		Self::Channel(sender)
 	}
 
-	async fn send(&mut self, log: Log) {
+	pub(crate) async fn send(&mut self, log: Log) {
 		match self {
 			// Self::Cb(cb) => cb(msg),
 			Self::Channel(send) => {
@@ -96,14 +98,14 @@ impl From<tokio::sync::mpsc::Sender<Log>> for LiveLogging {
 #[tracing::instrument(name = "logging", skip_all)]
 pub(crate) async fn logging(
 	listener: tokio::net::TcpListener,
-	mut logging: LiveLogging,
+	logging: &mut LiveLogging,
 	mut stop_listening: tokio::sync::oneshot::Receiver<()>,
-) -> Result<Option<TxHash>, color_eyre::Report> {
+) -> Result<Option<String>, color_eyre::Report> {
 	/// A marker for the end of a log
 	/// (its a log emojie)
 	const MARKER: char = '🪵';
 
-	let mut broadcasted_tx_hash: Option<TxHash> = None;
+	let mut broadcasted_tx_hash = None;
 
 	loop {
 		trace!("Waiting for new connection");
@@ -142,11 +144,12 @@ pub(crate) async fn logging(
 			let mut send = async |msg: &str| {
 				let log = Log::from_str(msg);
 				match log {
-					Log::BroadcastedTxHash(tx) => {
+					Log::BroadcastedTx(tx) => {
+						// handle this log differently
 						broadcasted_tx_hash = Some(tx);
 					}
-					Log::GenericMessage(msg) => {
-						logging.send(Log::GenericMessage(msg)).await;
+					log => {
+						logging.send(log).await;
 					}
 				}
 			};
