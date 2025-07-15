@@ -23,15 +23,15 @@ pub struct Env {
 /// Can refactor this if wanted
 #[allow(dead_code)]
 impl Env {
-	pub async fn default() -> Result<Env> {
+	pub async fn get() -> Result<Env> {
 		#[cfg(debug_assertions)]
-		return Self::from_local_env().await;
+		return Self::from_local_dev_env().await;
 		#[cfg(not(debug_assertions))]
 		Self::from_statically_included()
 	}
 
-	async fn from_local_env() -> Result<Env> {
-		let path = Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("env.toml");
+	async fn from_local_dev_env() -> Result<Env> {
+		let path = Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev.env.toml");
 		let file = ystd::fs::read_to_string(path)
 			.await
 			.wrap_err("Couldn't read env.toml")?;

@@ -190,8 +190,8 @@ impl FaucetCommand {
 	}
 }
 
-todo: take GlobalState Arc, make logging a static fut with tokio::spawn,
-add some helper string methods like truncate_lossy
+// todo: take GlobalState Arc, make logging a static fut with tokio::spawn,
+// add some helper string methods like truncate_lossy
 impl SupportedChain {
 	pub async fn handle(
 		&self,
@@ -277,7 +277,7 @@ impl SupportedChain {
 			auto_broadcast: true,
 		});
 		let tx_running_logging_task = async {
-			let mut recv_logs: Receiver<_> = recv_logs.clone();
+			let mut recv_logs: Receiver<_> = recv_logs;
 			while let Some(log) = recv_logs.recv().await {
 				info!(%log, "Sending live log");
 				// no need to clobber discord with useless logs

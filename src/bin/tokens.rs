@@ -52,7 +52,7 @@ async fn main() -> color_eyre::Result<()> {
 
 	let cli = Cli::parse();
 
-	let env = salt_discordbot::env::Env::default().await?;
+	let env = salt_discordbot::env::Env::get().await?;
 	let signer: PrivateKeySigner = env.private_key.parse()?;
 	let me = signer.address();
 	let provider = alloy::providers::ProviderBuilder::new()
