@@ -34,9 +34,9 @@ impl Env {
 		let path = Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev.env.toml");
 		let file = ystd::fs::read_to_string(path)
 			.await
-			.wrap_err("Couldn't read env.toml")?;
+			.wrap_err("Couldn't read dev.env.toml")?;
 		let env: Env =
-			toml::from_str(&file).wrap_err("env.toml not valid toml or missing required key")?;
+			toml::from_str(&file).wrap_err("dev.env.toml not valid toml or missing required key")?;
 		Ok(env)
 	}
 
